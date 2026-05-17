@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<odoo>
+        <record id="view_oauth_provider_form" model="ir.ui.view">
+            <field name="name">auth.oauth.provider.form</field>
+            <field name="model">auth.oauth.provider</field>
+            <field name="inherit_id" ref="auth_oauth.view_oauth_provider_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//sheet" position="before">
+                    <header>
+                        <button name="action_get_openid_configuration" type="object" string="Openid Config" class="oe_highlight" />
+                    </header>
+                </xpath>
+                <field name="name" position="after">
+                    <field name="issuer_url" />
+                    <field name="user_type" />
+                </field>
+                <field name="client_id" position="after">
+                    <field name="client_secret_env" />
+                    <field name="client_secret" />
+                </field>
+            </field>
+        </record>
+
+        <record id="view_oauth_provider_tree" model="ir.ui.view">
+            <field name="name">auth.oauth.provider.tree</field>
+            <field name="model">auth.oauth.provider</field>
+            <field name="inherit_id" ref="auth_oauth.view_oauth_provider_tree"/>
+            <field name="arch" type="xml">
+                <field name="name" position="after">
+                    <field name="issuer_url" />
+                    <field name="client_secret_env" />
+                    <field name="client_secret" />
+                </field>
+            </field>
+        </record>
+</odoo>
