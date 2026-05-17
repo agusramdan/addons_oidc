@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<odoo>
+        <record id="view_oidc_client_form" model="ir.ui.view">
+            <field name="name">oidc.client.form</field>
+            <field name="model">oidc.client</field>
+            <field name="arch" type="xml">
+                <form string="arch">
+                    <field name="active"  invisible="1"/>
+                    <sheet>
+                        <group>
+                            <field name="name" />
+                            <field name="client_id" />
+                        </group>
+                        <group>
+                            <field name="client_secret" groups="base.group_erp_manager"/>
+                            <field name="redirect_uri" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>        
+        <record id="view_oidc_client_tree" model="ir.ui.view">
+            <field name="name">oidc.client.tree</field>
+            <field name="model">oidc.client</field>
+            <field name="arch" type="xml">
+                <tree string="arch">
+                    <field name="active"  invisible="1"/>
+                    <field name="name" />
+                    <field name="client_id" />
+                    <field name="client_secret" groups="base.group_erp_manager"/>
+                    <field name="redirect_uri" />
+
+                </tree>
+            </field>
+        </record>
+        <record id="action_oidc_client" model="ir.actions.act_window">
+            <field name="name">Client</field>
+            <field name="res_model">oidc.client</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+        <menuitem id="menu_oidc_clients" name="Client"
+            parent="base.menu_users" sequence="30"
+            action="action_oidc_client" groups="base.group_no_one"/>
+</odoo>
