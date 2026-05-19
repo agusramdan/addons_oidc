@@ -12,10 +12,10 @@
                 </xpath>
                 <field name="name" position="after">
                     <field name="issuer_url" />
-                    <field name="user_type" />
+                    <field name="user_signup" />
+                    <field name="user_template_id" attrs="{'invisible':[('user_signup','not in', ['portal', 'internal', 'admin'])]}"/>
                 </field>
                 <field name="client_id" position="after">
-                    <field name="client_secret_env" />
                     <field name="client_secret" />
                 </field>
             </field>

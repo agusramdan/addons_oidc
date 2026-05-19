@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-# Part of Odoo. See LICENSE file for full copyright and licensing details.
+
+import logging
+import json
 
 from odoo import api, models
 
@@ -19,34 +21,24 @@ class ResUsers(models.Model):
 
     @api.model
     def _auth_oauth_signin(self, provider, validation, params):
-        oauth_uid = validation['user_id']
-        records = self.env['res.users'].with_context(
-            active_test=False
-        ).search([('oauth_provider_id', '=', provider), ('oauth_uid', '=', oauth_uid)], limit=1)
-        not records.active and records.action_unarchive()
-        login = super(ResUsers, self)._auth_oauth_signin(provider, validation, params)
-        oauth_provider = self.env['auth.oauth.provider'].browse(provider)
-        user = self.search([('login', '=', login)], limit=1)
-        if user:
-            self._apply_provider_groups(user, oauth_provider, )
-        return login
+        """ retrieve and sign in the user corresponding to provider and validated access token
+            :param provider: oauth provider id (int)
+            :param validation: result of validation of access token (dict)
+            :param params: oauth parameters (dict)
+            :return: user login (str)
+            :raise: AccessDenied if signin failed
 
-    @api.model
-    def _apply_provider_groups(self, user, provider):
-        admin_group = self.env.ref('base.group_erp_manager')
-        internal_group = self.env.ref('base.group_user')
-        portal_group = self.env.ref('base.group_portal')
-        if provider.user_type == 'admin':
+            This method can be overridden to add alternative signin methods.
+        """
+        oauth_provider = self.env['auth.oauth.provider'].browse(provider)
+        user = oauth_provider.get_user_match(validation)
+        if user:
+            _logger.info("found user %s for provider %s", user.login, oauth_provider.name)
+            # hack here to update access token on each login, in case it has changed since last login
             user.write({
-                'groups_id': [
-                    (3, portal_group.id),
-                    (4, admin_group.id),
-                ]
-            })
-        elif provider.user_type == 'internal':
-            user.write({
-                'groups_id': [
-                    (3, portal_group.id),
-                    (4, internal_group.id),
-                ]
-            })
+                'oauth_provider_id': provider,
+                'oauth_uid': validation['user_id'],
+                'oauth_access_token': params['access_token']})
+            return user.login
+
+        return super(ResUsers, self)._auth_oauth_signin(provider, validation, params)
