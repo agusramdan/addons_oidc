@@ -2,20 +2,12 @@
 
 {
     'name': "OIDC",
-    'summary': """
-        OIDC,
-        JWT,
-        Sharing Trusted Token Authentication between Applications Server
-    """,
-    'description': """
-        OIDC,
-        JWT,
-        Sharing Trusted Token Authentication between Applications Server
-    """,
+    'summary': "OIDC, JWT",
+    'description': "OIDC, JWT",
     'author': "Agus Muhammad Ramdan",
     'website': "http://www.agusramdan.tech",
     'category': 'API',
-    'version': '13.0.0.0.0',
+    'version': '13.0.0.0.1',
     'depends': ['base', 'web', 'amr_token'],
     'external_dependencies': {
         'python': ['pyjwt'],

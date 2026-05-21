@@ -13,6 +13,11 @@ from urllib.parse import urlparse
 
 _logger = logging.getLogger(__name__)
 
+REDIRECT_MODE = {
+   'auth_oauth_oidc': '/auth_oauth/oidc',
+   'auth_oauth_oea': '/auth_oauth/oea',
+}
+
 
 class OidcClient(models.Model):
     _name = 'oidc.client'
@@ -20,11 +25,23 @@ class OidcClient(models.Model):
 
     active = fields.Boolean(default=True)
     name = fields.Char()
-    client_id = fields.Char("Client ID")
+
+    client_id = fields.Char(
+        "Client ID",
+        help="Use web.base.url + redirect_path as redirect_uri if redirect_uri is not set."
+    )
     client_secret = fields.Char()
+    web_base_url = fields.Char()
     redirect_uri = fields.Text()
+    redirect_path = fields.Selection(
+        selection=REDIRECT_MODE.items(),
+        default='auth_oauth_oidc'
+    )
 
     def validate_redirect_uri(self, redirect_uri):
+        if self.redirect_path:
+            return True
+
         if not self.redirect_uri or not redirect_uri:
             return True
 
@@ -81,16 +98,27 @@ class OidcClient(models.Model):
             return None
 
     def create_authorization_code(self, redirect_uri=None, scope=''):
-        return self.sudo().create({
+        if self.redirect_path:
+            redirect_uri = self.web_base_url + REDIRECT_MODE.get(self.redirect_path)
+        else:
+            redirect_uri = redirect_uri or self.redirect_uri
+        return self.env['oidc.authorization.code'].sudo().create({
             'client_id': self.client_id,
             'user_id': self.env.user.id,
-            'redirect_uri': redirect_uri or self.redirect_uri,
+            'redirect_uri': redirect_uri,
             'scope': scope,
             'expired_at': fields.Datetime.now() + timedelta(minutes=5)
         })
 
-    def create_access_token(self, scope=''):
-        return self.env.user.create_access_token(scope=scope, audience=self.client_id)
+    def create_access_token(self, redirect_uri=None, scope='',**kw):
+        if self.redirect_path:
+            redirect_uri = self.web_base_url + REDIRECT_MODE.get(self.redirect_path)
+        else:
+            redirect_uri = redirect_uri or self.redirect_uri
+
+        return self.env.user.create_access_token(
+            scope=scope, audience=self.client_id, redirect_uri=redirect_uri
+        )
 
     def validate_token(self, token):
         client = self
@@ -122,7 +150,7 @@ class OidcClient(models.Model):
         #     )
         #     client = self.sudo().search([('client_id', '=', payload.get('aud'))], limit=1)
         # audience = client and client.client_id
-        return self.env['oidc.refresh.token'].validate(token, self.client_id)
+        return self.env['oidc.refresh.token'].validate_token(token, self.client_id)
 
     # def validate(self, token, refresh_token=False):
     #     client = self

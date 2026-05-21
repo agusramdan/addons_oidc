@@ -9,7 +9,6 @@ from datetime import datetime, timedelta
 from jwt import InvalidTokenError
 from odoo import api, fields, models
 
-
 _logger = logging.getLogger(__name__)
 
 
@@ -50,9 +49,9 @@ class AccessToken(models.Model):
     def generate_token():
         return str(uuid.uuid4())
 
-    def create_refresh_token(self, user):
+    def create_refresh_token(self, user, **kw):
         token = self.generate_token()
-        expires_in = (60 * 60 * 24*14)
+        expires_in = (60 * 60 * 24 * 14)
         expire = int(time.time()) + expires_in
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
 
@@ -64,36 +63,42 @@ class AccessToken(models.Model):
         payload = {
             'token': token,
             'data': f"{user.id}-{user.email}-{time.time()}-{self.env.cr.dbname}",
-            'aud': self.get_audience(),
             'iss': self.get_issuer(),
             'exp': expire
         }
+        aud = kw.get('aud')
+        resource = kw.get('resource')
+        if resource:
+            payload['aud'] = resource
+        elif aud:
+            payload['aud'] = aud
         return jwt.encode(
             payload,
             self.get_secret(),
             algorithm=self.get_algorithm()
         )
 
-    def validate_token(self, token, audience):
+    def validate_token(self, token, audience, options=None):
         try:
+            options = options or {
+                "require": ["exp", "iss", "aud"]
+            }
             payload = jwt.decode(
                 token,
                 self.get_secret(),
                 issuer=self.get_issuer(),
                 audience=audience,
                 algorithms=[self.get_algorithm()],
-                options={
-                    "require": ["exp", "iss", "aud"]
-                }
+                options=options
             )
-            if not payload.get("token"):
+            if payload.get("token"):
                 rec = self.sudo().search(
                     [("token", "=", payload.get("token")),
                      ("revoked", "=", False),
-                     ('expires_at','<',fields.Datetime.now())],
+                     ('expires_at', '<', fields.Datetime.now())],
                     limit=1
                 )
-                if not rec or rec.expires_at < fields.Datetime.now():
+                if rec:
                     return payload
         # except InvalidIssuerError:
         #     pass

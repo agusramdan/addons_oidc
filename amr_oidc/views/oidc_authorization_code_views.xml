@@ -20,7 +20,7 @@
         <field name="res_model">oidc.authorization.code</field>
         <field name="view_mode">tree</field>
     </record>
-    <menuitem id="menu_oidc_authorization_codes" name="Authorization"
+    <menuitem id="menu_oidc_authorization_codes" name="OIDC Authorization"
               parent="base.menu_users" sequence="30"
               action="action_oidc_authorization_code" groups="base.group_no_one"/>
 </odoo>

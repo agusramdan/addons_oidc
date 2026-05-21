@@ -35,7 +35,7 @@
             <field name="res_model">oidc.refresh.token</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem id="menu_oidc_refresh_tokens" name="Token Issuer"
+        <menuitem id="menu_oidc_refresh_tokens" name="Refresh Token"
             parent="base.menu_users" sequence="30"
             action="action_oidc_refresh_token" groups="base.group_no_one"/>
 </odoo>

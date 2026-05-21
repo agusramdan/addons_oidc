@@ -10,9 +10,11 @@
                         <group>
                             <field name="name" />
                             <field name="client_id" />
+                            <field name="client_secret" groups="base.group_erp_manager"/>
                         </group>
                         <group>
-                            <field name="client_secret" groups="base.group_erp_manager"/>
+                            <field name="web_base_url" />
+                            <field name="redirect_path" />
                             <field name="redirect_uri" />
                         </group>
                     </sheet>
@@ -28,8 +30,7 @@
                     <field name="name" />
                     <field name="client_id" />
                     <field name="client_secret" groups="base.group_erp_manager"/>
-                    <field name="redirect_uri" />
-
+                    <field name="web_base_url" />
                 </tree>
             </field>
         </record>
@@ -38,7 +39,7 @@
             <field name="res_model">oidc.client</field>
             <field name="view_mode">tree,form</field>
         </record>
-        <menuitem id="menu_oidc_clients" name="Client"
+        <menuitem id="menu_oidc_clients" name="OIDC Client"
             parent="base.menu_users" sequence="30"
             action="action_oidc_client" groups="base.group_no_one"/>
 </odoo>
