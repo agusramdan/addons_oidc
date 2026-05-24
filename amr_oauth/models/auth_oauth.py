@@ -103,3 +103,8 @@ class AuthOAuthProvider(models.Model):
         if email:
             return self.env['res.users'].search([('email', '=', email)], limit=1)
         return None
+
+    def get_user_token_login(self, token):
+        resource_helper = self.env['amr.resource.helper'].sudo()
+        validate = resource_helper.validate(token)
+        return self.get_user_match(validate)

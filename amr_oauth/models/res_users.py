@@ -1,5 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime
+import requests
+from odoo import SUPERUSER_ID, _, api, exceptions, models,tools
+from odoo.tools import config
+from odoo.http import request
+from odoo.exceptions import AccessDenied, AccessError, UserError, ValidationError
+import json
+
+
+
 import logging
 import json
 
@@ -12,6 +22,18 @@ _logger = logging.getLogger(__name__)
 
 class ResUsers(models.Model):
     _inherit = 'res.users'
+
+    @classmethod
+    def _login(cls, db, login, password):
+        try:
+            resource_helper = request.env['amr.resource.helper'].sudo()
+            validate = resource_helper.validate(password)
+            user = resource_helper.get_user_match(validate)
+            if user:
+                return user.id
+        except Exception as e:
+            _logger.exception("Login failed for db:%s login:%s", db, login)
+        return super(ResUsers, cls)._login(db, login, password)
 
     @api.model
     def _auth_oauth_validate(self, provider, access_token):
