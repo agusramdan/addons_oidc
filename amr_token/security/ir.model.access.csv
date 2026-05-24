@@ -1,3 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_amr_token_admin,access_amr_token admin,model_amr_token,base.group_erp_manager,1,1,1,1
-access_amr_token_user,access_amr_token user,model_amr_token,base.group_user,1,0,0,0
+access_amr_public_key_admin,access_amr_public_key admin,model_amr_public_key,base.group_erp_manager,1,1,1,1

@@ -1,28 +1,23 @@
 # -*- coding: utf-8 -*-
 
 {
-    'name': "JWT Token",
-    'summary': """
-        JWT Token,
-        Sharing Trusted Token Authentication between Applications Server
-    """,
-    'description': """
-        JWT Token,
-        Sharing Trusted Token Authentication between Applications Server
-    """,
+    'name': "Token Provider",
+    'summary': "Token Provider",
+    'description': "Token Provider",
     'author': "Agus Muhammad Ramdan",
     'website': "http://www.agusramdan.tech",
     'category': 'API',
-    'version': '13.0.0.0.0',
-    'depends': ['base', 'base_setup', 'web', ],
+    'version': '13.0.0.0.1',
+    'depends': ['base', 'base_setup', 'web', 'amr_resource'],
     'external_dependencies': {
         'python': ['pyjwt'],
     },
     'data': [
         'security/ir.model.access.csv',
 
-        'views/token_views.xml',
-
+        'views/public_key_views.xml',
+        # 'views/token_views.xml',
+        'views/menuitem.xml',
         'views/res_config_settings_views.xml',
     ],
 }

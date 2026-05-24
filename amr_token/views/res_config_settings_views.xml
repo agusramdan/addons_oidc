@@ -1,87 +1,39 @@
 <odoo>
-    <record id="view_config_settings_form" model="ir.ui.view">
+    <record id="view_config_settings_form_sub" model="ir.ui.view">
         <field name="name">res.config.settings.view.form</field>
         <field name="model">res.config.settings</field>
-        <field name="inherit_id" ref="base_setup.res_config_settings_view_form"/>
+        <field name="inherit_id" ref="amr_resource.view_config_settings_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//div[hasclass('settings')]" position="inside">
-                <div id="amr_token_addons" class="app_settings_block"
-                     data-string="amr_token" string="Token Addons"
-                     data-key="amr_token_addons" groups="base.group_erp_manager">
-                    <div id="amr_token">
-                        <h2>Token</h2>
-                        <div class="row mt16 o_settings_container">
-                            <div class="col-xs-12 col-md-6 o_setting_box" >
-                                <div class="o_setting_left_pane">
-                                    <field name="module_amr_oidc"/>
-                                </div>
-                                <div class="o_setting_right_pane" >
-                                    <div class="content-group">
-                                        <label for="module_amr_oidc"/>
-                                        <div class="text-muted">
-                                            OIDC Server
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xs-12 col-md-6 o_setting_box" >
-                                <div class="o_setting_left_pane">
-                                    <field name="module_amr_oauth"/>
-                                </div>
-                                <div class="o_setting_right_pane" >
-                                    <div class="content-module_amr_auth_oauth">
-                                        <label for="module_amr_oauth"/>
-                                        <div class="text-muted">
-                                            OIDC Client
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xs-12 col-md-6 o_setting_box" >
-                                <div class="o_setting_left_pane">
-                                    <field name="module_amr_auto_login"/>
-                                </div>
-                                <div class="o_setting_right_pane" >
-                                    <div class="content-group">
-                                        <label for="module_amr_auto_login"/>
-                                        <div class="text-muted">
-                                            OIDC Client auto login (Experimental)
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="amr_token_config" groups="base.group_erp_manager">
-                        <h2>Configuration</h2>
-                        <div class="row mt16 o_settings_container" id="amr_token_enabled_setting">
+            <xpath expr="//div[@id='amr_resource_app']" position="after">
+                <div id="amr_token_config" groups="base.group_erp_manager" attrs="{'invisible': [('module_amr_token','=',False)]}">
+                        <h2>JWT Token</h2>
+                        <div class="row mt16 o_settings_container" >
                             <div class="col-xs-12 col-md-6 o_setting_box" >
                                 <div class="o_setting_right_pane">
-                                    <div class="mt16 row">
-                                        <label for="amr_token_audience" class="col-3 col-lg-3 o_light_label"/>
-                                        <field name="amr_token_audience" nolabel="1" readonly="1"/>
-<!--                                        <br/>-->
-<!--                                        <button name="action_get_token_audience" icon="fa-arrow-right" type="object" string="Get Token Audience" class="btn-link" />-->
+                                    <div class="row mt16">
+                                        <label for="amr_token_signature_type" string="Signature Type:" class="col-lg-3 o_light_label"/>
+                                        <field name="amr_token_signature_type" />
                                     </div>
-                                    <div class="mt16 row">
-                                        <label for="amr_token_secret" class="col-3 col-lg-3 o_light_label"/>
-                                        <field name="amr_token_secret" password="True" nolabel="1"/>
+                                    <div class="row mt16" attrs="{'invisible': [('amr_token_signature_type','!=','secret')]}">
+                                        <label for="amr_token_secret_algorithm" string="Secret :" class="col-lg-3 o_light_label"/>
+                                        <field name="amr_token_secret" password="1"/>
                                     </div>
-
-                                    <div class="mt16 row">
-                                        <label for="amr_token_retention_in" class="col-3 col-lg-3 o_light_label"/>
-                                        <field name="amr_token_retention_in" nolabel="1"/>
+                                    <div class="row mt16" attrs="{'invisible': [('amr_token_signature_type','!=','secret')]}">
+                                        <label for="amr_token_secret_algorithm" string="Algorithm:" class="col-lg-3 o_light_label"/>
+                                        <field name="amr_token_secret_algorithm" />
                                     </div>
-                                    <div class="mt16 row">
-                                        <label for="amr_token_expires_in" class="col-3 col-lg-3 o_light_label"/>
-                                        <field name="amr_token_expires_in" nolabel="1"/>
+                                    <div class="row mt16" attrs="{'invisible': [('amr_token_signature_type','!=','public_key')]}">
+                                        <label for="amr_token_public_key_algorithm" string="Algorithm:" class="col-lg-3 o_light_label"/>
+                                        <field name="amr_token_public_key_algorithm" />
+                                    </div>
+                                    <div class="row mt16">
+                                        <label for="amr_token_expires_in" string="Expires :" class="col-lg-3 o_light_label"/>
+                                        <field name="amr_token_expires_in" placeholder="e.g. 1000"/>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
             </xpath>
         </field>
     </record>
