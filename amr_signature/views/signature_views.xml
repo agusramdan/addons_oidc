@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- TREE VIEW -->
+    <record id="view_approval_signature_tree" model="ir.ui.view">
+        <field name="name">amr.signature.tree</field>
+        <field name="model">amr.signature</field>
+        <field name="arch" type="xml">
+            <tree string="Signatures">
+                <field name="name"/>
+                <field name="issuer_url" widget="url"/>
+                <field name="audience" />
+                <field name="deep_link" widget="url"/>
+                <field name="qr_signature" widget="url"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="view_signature_form" model="ir.ui.view">
+        <field name="name">amr.signature.form</field>
+        <field name="model">amr.signature</field>
+        <field name="arch" type="xml">
+            <form string="Signature">
+
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="issuer_url"/>
+                            <field name="audience"/>
+                        </group>
+                        <group>
+                            <field name="signature" />
+                            <field name="deep_link" widget="url"/>
+                            <field name="qr_signature" widget="url"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="QR">
+                            <field name="qr_signature_html" />
+                        </page>
+                        <page string="Token">
+                            <field name="jwt_token" widget="text" style="white-space: pre-wrap; word-break: break-all; min-height: 100px;" />
+                        </page>
+                    </notebook>
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- SEARCH VIEW -->
+    <record id="view_signature_search" model="ir.ui.view">
+        <field name="name">amr.signature.search</field>
+        <field name="model">amr.signature</field>
+        <field name="arch" type="xml">
+            <search string="Signature Search">
+                <field name="name"/>
+                <field name="signature" />
+                <field name="jwt_token"/>
+            </search>
+        </field>
+    </record>
+
+    <!-- ACTION -->
+    <record id="action_signature" model="ir.actions.act_window">
+        <field name="name">Signatures</field>
+        <field name="res_model">amr.signature</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_signature_search"/>
+    </record>
+
+
+
+</odoo>

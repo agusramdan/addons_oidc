@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================= -->
+    <!-- Tree View -->
+    <!-- ========================= -->
+    <record id="view_challenge_tree" model="ir.ui.view">
+        <field name="name">amr.challenge.tree</field>
+        <field name="model">amr.challenge</field>
+        <field name="arch" type="xml">
+            <tree string="Challenges" default_order="create_date desc">
+                <field name="jti"/>
+                <field name="action_type"/>
+                <field name="state"/>
+                <field name="user_id"/>
+                <field name="device_id"/>
+                <field name="res_model"/>
+                <field name="expires_at"/>
+                <field name="create_date"/>
+            </tree>
+        </field>
+    </record>
+    <!-- ========================= -->
+    <!-- Form View -->
+    <!-- ========================= -->
+    <record id="view_challenge_form" model="ir.ui.view">
+        <field name="name">amr.challenge.form</field>
+        <field name="model">amr.challenge</field>
+        <field name="arch" type="xml">
+            <form string="Challenge">
+                <header>
+                    <field name="state"
+                           widget="statusbar"
+                           statusbar_visible="pending,approved,rejected,expired"/>
+                </header>
+
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="jti" readonly="1"/>
+                        </h1>
+                        <h2>
+                            <field name="action_type" readonly="1"/>
+                        </h2>
+                    </div>
+
+                    <group>
+                        <group>
+                            <field name="sid"/>
+                            <field name="jti" readonly="1"/>
+                            <field name="nonce" readonly="1"/>
+                            <field name="action_type"/>
+                            <field name="state"/>
+                            <field name="user_id" />
+                        </group>
+
+                        <group>
+                            <field name="res_model"/><!-- Resource / Approval -->
+                            <field name="device_id"/>
+                            <field name="expires_at"/>
+                            <field name="create_date" readonly="1"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Token">
+                            <field name="jwt_token" widget="text"
+                                   style="white-space: pre-wrap; word-break: break-all; min-height: 100px;" />
+                        </page>
+
+                        <!-- Signature -->
+                        <page string="Signature">
+                            <field name="signature"
+                                   widget="text"
+                                   nolabel="1"
+                                   class="oe_inline"/>
+                        </page>
+
+                        <!-- QR Challenge -->
+                        <page string="QR Challenge">
+                            <group>
+                                <field name="deep_link" readonly="1" widget="url"/>
+                                <field name="qr_challenge" readonly="1"/>
+                            </group>
+
+                            <group>
+                                <field name="qr_challenge_html"
+                                       nolabel="1"
+                                       widget="html"
+                                       readonly="1"/>
+                            </group>
+                        </page>
+
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ========================= -->
+    <!-- Search View -->
+    <!-- ========================= -->
+    <record id="view_challenge_search" model="ir.ui.view">
+        <field name="name">amr.challenge.search</field>
+        <field name="model">amr.challenge</field>
+        <field name="arch" type="xml">
+            <search string="Search Challenges">
+
+                <field name="jti"/>
+                <field name="sid"/>
+                <field name="user_id"/>
+                <field name="device_id"/>
+                <field name="action_type"/>
+                <field name="state"/>
+
+                <filter string="Pending"
+                        name="filter_pending"
+                        domain="[('state', '=', 'pending')]"/>
+
+                <filter string="Approved"
+                        name="filter_approved"
+                        domain="[('state', '=', 'approved')]"/>
+
+                <filter string="Rejected"
+                        name="filter_rejected"
+                        domain="[('state', '=', 'rejected')]"/>
+
+                <filter string="Expired"
+                        name="filter_expired"
+                        domain="[('state', '=', 'expired')]"/>
+
+                <separator/>
+
+                <filter string="Login"
+                        name="filter_login"
+                        domain="[('action_type', '=', 'login')]"/>
+
+                <filter string="Approval"
+                        name="filter_approval"
+                        domain="[('action_type', '=', 'approval')]"/>
+
+                <filter string="Digital Signature"
+                        name="filter_sign"
+                        domain="[('action_type', '=', 'sign')]"/>
+
+                <filter string="Device Binding"
+                        name="filter_device"
+                        domain="[('action_type', '=', 'device')]"/>
+
+                <group expand="0" string="Group By">
+                    <filter string="State"
+                            name="group_state"
+                            context="{'group_by': 'state'}"/>
+
+                    <filter string="Action Type"
+                            name="group_action_type"
+                            context="{'group_by': 'action_type'}"/>
+
+                    <filter string="User"
+                            name="group_user"
+                            context="{'group_by': 'user_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- Window Action -->
+    <!-- ========================= -->
+    <record id="action_challenge" model="ir.actions.act_window">
+        <field name="name">Challenges</field>
+        <field name="res_model">amr.challenge</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_challenge_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create challenge for login, approval, signature, or device binding.
+            </p>
+        </field>
+    </record>
+
+</odoo>

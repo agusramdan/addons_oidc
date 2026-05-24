@@ -1,0 +1,13 @@
+<odoo>
+
+
+    <!-- technical -->
+    <menuitem id="menu_signature" name="Digital Signatures" sequence="60"
+              action="action_signature"  parent="base.menu_users"
+    />
+
+    <menuitem id="menu_challenge" name="Challenges" sequence="20"
+              action="action_challenge" parent="base.menu_users"
+    />
+
+</odoo>
