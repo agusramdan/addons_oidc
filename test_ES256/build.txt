@@ -1,0 +1,4 @@
+
+openssl ecparam -name prime256v1 -genkey -noout -out private_ec.pem
+
+openssl ec -in private_ec.pem -pubout -out public_ec.pem
