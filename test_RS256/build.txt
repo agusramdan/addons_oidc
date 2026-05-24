@@ -1,0 +1,15 @@
+
+python -m pip install --upgrade setuptools wheel
+python -m pip install cryptography==41.0.7
+
+python -m pip install pipwin
+pipwin install cryptography
+
+
+openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+
+openssl rsa -pubout -in private_key.pem -out public_key.pem
+
+openssl ecparam -name prime256v1 -genkey -noout -out private_ec.pem
+
+openssl ec -in private_ec.pem -pubout -out public_ec.pem
