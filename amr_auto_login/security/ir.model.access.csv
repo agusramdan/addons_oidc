@@ -1,4 +1,0 @@
-id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_trust_audience_system,access_trust_audience admin,model_trust_audience,base.group_system,1,1,1,1
-access_trust_audience_admin,access_trust_audience admin,model_trust_audience,base.group_erp_manager,1,1,1,1
-access_trust_audience_user,access_trust_audience user,model_trust_audience,base.group_user,1,0,0,0

@@ -1,19 +1,14 @@
 # -*- coding: utf-8 -*-
-# Part of Odoo. See LICENSE file for full copyright and licensing details.
 
 {
-    'name': 'OAuth2 Authentication : Custom',
+    'name': 'Auto Login using url parameter access_token or token',
     'category': 'Tools',
     'description': """
 Allow users to login through OAuth2 Provider.
 =============================================
 """,
     'maintainer': 'Agus Muhammad Ramdan',
-    'depends': ['base', 'web', 'base_setup', 'amr_token', 'amr_oauth'],
-    'data': [
-        'security/ir.model.access.csv',
-
-        'views/trust_audience_views.xml',
-    ],
+    'depends': ['base', 'amr_resource'],
+    'version': '13.0.0.0.0',
     'license': 'LGPL-3',
 }
