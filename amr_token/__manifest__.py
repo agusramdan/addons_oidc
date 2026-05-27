@@ -16,7 +16,7 @@
         'security/ir.model.access.csv',
 
         'views/public_key_views.xml',
-        # 'views/token_views.xml',
+        'views/user_public_key_views.xml',
         'views/menuitem.xml',
         'views/res_config_settings_views.xml',
     ],

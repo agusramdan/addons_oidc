@@ -1,15 +1,11 @@
 <odoo>
 
-
     <!-- technical -->
-<!--    <menuitem id="menu_approval_signature" name="Digital Signatures" sequence="60"-->
-<!--              action="action_approval_signature"  parent="amr_approval.base_approval_menu"-->
-<!--    />-->
-<!--    <menuitem id="menu_tokens" name="Token Issuer" sequence="30"-->
-<!--              action="action_amr_token" parent="base.menu_users" groups="base.group_no_one"-->
-<!--    />-->
     <menuitem id="menu_public_key" name="JWKS Keys" sequence="40"
               action="action_amr_public_key" parent="base.menu_users" groups="base.group_no_one"
     />
+    <menuitem id="menu_user_public_key" name="User Public Keys" sequence="30"
+              action="action_user_public_key" parent="base.menu_users" groups="base.group_no_one"
+              />
 
 </odoo>

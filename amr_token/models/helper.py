@@ -307,7 +307,7 @@ class TokenHelper(models.AbstractModel):
             algorithm=algorithm
         ), payload
 
-    def encode(self, token, *kw):
+    def decode(self, token, *kw):
         return self.validate(token)
 
     def validate(self, token):
