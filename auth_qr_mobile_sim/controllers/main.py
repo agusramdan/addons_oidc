@@ -32,7 +32,25 @@ import qrcode
 from odoo import http
 from odoo.http import request
 from odoo.fields import Datetime
+from odoo.service import security
 
+def set_session(user, session_token=None):
+    session = request.session
+    session.rotate = True
+    session.uid = user.id
+    session.login = user.login
+    if user:
+        session.session_token = security.compute_session_token(session, request.env)
+    else:
+        session.session_token = session_token
+    if not session.session_token:
+        request.uid = None
+        session.uid = None
+        session.login = None
+    else:
+        request.uid = user.id
+        request.disable_db = False
+        session.get_context()
 
 class QrLoginController(http.Controller):
 
@@ -208,11 +226,8 @@ class QrLoginController(http.Controller):
         # prevent reuse
         if challenge.status == 'used':
             return request.redirect('/web/login')
-
-        user = challenge.approved_by
-
         # IMPORTANT
-        request.session.uid = user.id
+        set_session(challenge.approved_by)
 
         # invalidate challenge
         challenge.action_archive()

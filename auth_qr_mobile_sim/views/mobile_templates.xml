@@ -1,24 +1,18 @@
 <odoo>
 
-<template id="mobile_sim_page">
+    <template id="mobile_sim_page">
 
-    <t t-call="web.layout">
+        <t t-call="web.layout">
 
-        <div class="container mt-5">
+            <div class="container mt-5">
 
-            <div class="card p-4">
+                <div class="card p-4">
 
-                <h2>
-                    Mobile Simulator
-                </h2>
-
-                <form id="load-challenge-form">
+                    <h2>Mobile Simulator</h2>
 
                     <div class="form-group mt-3">
 
-                        <label>
-                            Challenge Token
-                        </label>
+                        <label>Challenge Token</label>
 
                         <input type="text"
                                id="challenge_token"
@@ -34,81 +28,145 @@
 
                     </button>
 
-                </form>
+                    <div id="challenge-detail"
+                         class="mt-4">
+                    </div>
 
-                <div id="challenge-detail"
-                     class="mt-4">
                 </div>
 
             </div>
 
-        </div>
-        <script>
+            <script type="text/javascript">
 
-async function loadChallenge() {
+                async function loadChallenge() {
 
-    const token = document.getElementById(
-        'challenge_token'
-    ).value
+                    const token =
+                        document.getElementById(
+                            'challenge_token'
+                        ).value;
 
-    const response = await fetch(
-        `/mobile-sim/challenge/${token}`,
-        {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: '{}'
-        }
-    )
+                    if (!token) {
+                        alert('Token required');
+                        return;
+                    }
 
-    const data = await response.json()
+                    const response = await fetch(
+                        `/mobile-sim/challenge/${token}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: '{}'
+                        }
+                    );
 
-    if (!data.result.success) {
-        return
-    }
+                    const data =
+                        await response.json();
 
-    const challenge = data.result.challenge
+                    console.log(data);
 
-    document.getElementById(
-        'challenge-detail'
-    ).innerHTML = `
+                    if (!data.result) {
+                        alert('Invalid response');
+                        return;
+                    }
 
-        <div class="card p-3">
+                    if (!data.result.success) {
+                        alert('Challenge not found');
+                        return;
+                    }
 
-            <h3>${challenge.action}</h3>
+                    const challenge =
+                        data.result.challenge;
 
-            <p>
-                Status:
-                ${challenge.status}
-            </p>
+                    document.getElementById(
+                        'challenge-detail'
+                    ).innerHTML = `
 
-            <button class="btn btn-success"
-                    onclick="approveChallenge(
-                        '${challenge.token}'
-                    )">
+                        <div class="card p-3">
 
-                Approve
+                            <h3>
+                                ${challenge.action}
+                            </h3>
 
-            </button>
+                            <p>
+                                Status:
+                                ${challenge.status}
+                            </p>
 
-            <button class="btn btn-danger ms-2"
-                    onclick="rejectChallenge(
-                        '${challenge.token}'
-                    )">
+                            <button class="btn btn-success"
+                                    onclick="approveChallenge(
+                                        '${challenge.token}'
+                                    )">
 
-                Reject
+                                Approve
 
-            </button>
+                            </button>
 
-        </div>
+                            <button class="btn btn-danger ms-2"
+                                    onclick="rejectChallenge(
+                                        '${challenge.token}'
+                                    )">
 
-    `
-}
+                                Reject
 
-</script>
-    </t>
+                            </button>
 
-</template>
+                        </div>
+
+                    `;
+                }
+
+                async function approveChallenge(token) {
+
+                    const response = await fetch(
+                        `/mobile-sim/approve/${token}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: '{}'
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    console.log(data);
+
+                    alert('Approved');
+
+                    loadChallenge();
+                }
+
+                async function rejectChallenge(token) {
+
+                    const response = await fetch(
+                        `/mobile-sim/reject/${token}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: '{}'
+                        }
+                    );
+
+                    const data =
+                        await response.json();
+
+                    console.log(data);
+
+                    alert('Rejected');
+
+                    loadChallenge();
+                }
+
+            </script>
+
+        </t>
+
+    </template>
 
 </odoo>

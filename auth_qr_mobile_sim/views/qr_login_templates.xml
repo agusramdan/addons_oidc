@@ -15,7 +15,9 @@
                     </h3>
                 </div>
             </div>
-           <div id="qr-login-data" t-att-data-token="challenge.challenge_token"/>
+            <div id="qr-login-data" t-att-data-token="challenge.challenge_token">
+                <t t-esc='challenge.challenge_token'/>
+            </div>
 
 <script type="text/javascript">
 
