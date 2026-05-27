@@ -25,6 +25,7 @@ _logger = logging.getLogger(__name__)
 
 
 class ControllerToken(http.Controller):
+
     def valid_response(self, status, data):
         return Response(
             status=status,
@@ -61,7 +62,7 @@ class ControllerToken(http.Controller):
     @http.route('/cl/qr/<jti>', type='http', auth='public', methods=['GET'], csrf=False)
     def challenge_token(self, jti, version=2, box_size=10, border=2):
         # response token
-        challenge = request.env['amr.challenge'].search([('jti', '=', jti)])
+        challenge = request.env['amr.challenge'].sudo().search([('jti', '=', jti)])
         if not challenge:
             raise NotFound
         return self.generate_qr(challenge.deep_link, version=version, box_size=box_size, border=border)

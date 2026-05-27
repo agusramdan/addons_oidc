@@ -82,9 +82,9 @@ class Challenge(models.Model):
             'expires_at': expires_at,
             'state': 'pending',
         }])[0]
-
+        token, _ = challenge.encode()
         challenge.write({
-            'jwt_token': challenge.encode(challenge.get_payload())
+            'jwt_token': token
         })
         return challenge
 
