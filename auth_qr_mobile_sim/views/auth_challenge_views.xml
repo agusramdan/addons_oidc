@@ -1,0 +1,150 @@
+<odoo>
+
+    <!-- TREE VIEW -->
+
+    <record id="view_auth_challenge_tree"
+            model="ir.ui.view">
+        <field name="name">auth.challenge.tree</field>
+        <field name="model">auth.challenge</field>
+        <field name="arch" type="xml">
+
+            <tree>
+                <field name="challenge_token"/>
+                <field name="action"/>
+                <field name="status"/>
+                <field name="requested_by"/>
+                <field name="approved_by"/>
+                <field name="expired_at"/>
+            </tree>
+
+        </field>
+
+    </record>
+
+
+    <!-- FORM VIEW -->
+
+    <record id="view_auth_challenge_form" model="ir.ui.view">
+        <field name="name">auth.challenge.form</field>
+        <field name="model">auth.challenge</field>
+        <field name="arch" type="xml">
+            <form string="Authentication Challenge">
+
+                <sheet>
+
+                    <!-- STATUS -->
+
+                    <div class="oe_title">
+
+                        <h1>
+
+                            <field name="challenge_token"
+                                   readonly="1"/>
+
+                        </h1>
+
+                    </div>
+
+                    <!-- MAIN INFO -->
+
+                    <group>
+
+                        <group>
+
+                            <field name="action"/>
+
+                            <field name="status"
+                                   widget="badge"/>
+
+                            <field name="expired_at"/>
+
+                        </group>
+
+                        <group>
+
+                            <field name="requested_by" />
+
+                            <field name="approved_by" />
+
+                        </group>
+
+                    </group>
+
+                    <!-- SECURITY -->
+
+                    <notebook>
+
+                        <page string="Security">
+
+                            <group>
+
+                                <field name="nonce"
+                                       readonly="1"
+                                       widget="text"/>
+
+                                <field name="session_sid"
+                                       readonly="1"/>
+
+                            </group>
+
+                        </page>
+
+                    </notebook>
+
+                </sheet>
+
+            </form>
+
+        </field>
+
+    </record>
+
+
+    <!-- SEARCH VIEW -->
+
+    <record id="view_auth_challenge_search" model="ir.ui.view">
+    <field name="name">auth.challenge.search</field>
+    <field name="model">auth.challenge</field>
+    <field name="arch" type="xml">
+        <search>
+            <field name="challenge_token"/>
+            <field name="requested_by"/>
+            <field name="approved_by"/>
+
+            <filter string="Pending"
+                    name="pending"
+                    domain="[('status','=','pending')]"/>
+
+            <filter string="Approved"
+                    name="approved"
+                    domain="[('status','=','approved')]"/>
+
+            <filter string="Rejected"
+                    name="rejected"
+                    domain="[('status','=','rejected')]"/>
+        </search>
+    </field>
+</record>
+
+
+    <!-- ACTION -->
+
+    <record id="action_auth_challenge" model="ir.actions.act_window">
+        <field name="name">Authentication Challenges</field>
+        <field name="res_model">auth.challenge</field>
+        <field name="view_mode">tree,form</field>
+<!--        <field name="search_view_id" ref="view_auth_challenge_search"/>-->
+    </record>
+
+
+    <!-- MENU -->
+
+    <menuitem id="menu_auth_root"
+              name="QR Authentication"/>
+
+    <menuitem id="menu_auth_challenge"
+              name="Challenges"
+              parent="menu_auth_root"
+              action="action_auth_challenge"/>
+
+</odoo>

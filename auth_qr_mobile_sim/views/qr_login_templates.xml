@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- TREE VIEW -->
+    <template id="qr_login_page">
+
+        <t t-call="web.layout">
+            <div class="container text-center mt-5">
+                <h1>QR Login</h1>
+                <img t-att-src="'data:image/png;base64,%s' % qr_base64"
+                     width="300"/>
+                <div class="mt-4">
+                    <h3 id="login-status">
+                        Waiting for approval...
+                    </h3>
+                </div>
+            </div>
+           <div id="qr-login-data" t-att-data-token="challenge.challenge_token"/>
+
+<script type="text/javascript">
+
+    const challengeToken =
+        document
+            .getElementById('qr-login-data')
+            .dataset
+            .token;
+
+    async function pollLogin() {
+
+        const response = await fetch(
+            `/qr-login/status/${challengeToken}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: '{}',
+            }
+        );
+
+        const data = await response.json();
+
+        console.log(data);
+
+        if (!data.result) {
+            return;
+        }
+
+        if (
+            data.result.status === 'approved'
+        ) {
+
+            window.location =
+                `/qr-login/finalize/${challengeToken}`;
+
+        }
+
+        if (
+            data.result.status === 'rejected'
+        ) {
+
+            document.getElementById(
+                'login-status'
+            ).innerHTML =
+                'Login Rejected';
+
+        }
+
+    }
+
+    setInterval(pollLogin, 2000);
+
+</script>
+        </t>
+
+    </template>
+
+
+
+</odoo>

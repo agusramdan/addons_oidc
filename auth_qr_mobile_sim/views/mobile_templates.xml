@@ -1,0 +1,114 @@
+<odoo>
+
+<template id="mobile_sim_page">
+
+    <t t-call="web.layout">
+
+        <div class="container mt-5">
+
+            <div class="card p-4">
+
+                <h2>
+                    Mobile Simulator
+                </h2>
+
+                <form id="load-challenge-form">
+
+                    <div class="form-group mt-3">
+
+                        <label>
+                            Challenge Token
+                        </label>
+
+                        <input type="text"
+                               id="challenge_token"
+                               class="form-control"/>
+
+                    </div>
+
+                    <button type="button"
+                            class="btn btn-primary mt-3"
+                            onclick="loadChallenge()">
+
+                        Load Challenge
+
+                    </button>
+
+                </form>
+
+                <div id="challenge-detail"
+                     class="mt-4">
+                </div>
+
+            </div>
+
+        </div>
+        <script>
+
+async function loadChallenge() {
+
+    const token = document.getElementById(
+        'challenge_token'
+    ).value
+
+    const response = await fetch(
+        `/mobile-sim/challenge/${token}`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: '{}'
+        }
+    )
+
+    const data = await response.json()
+
+    if (!data.result.success) {
+        return
+    }
+
+    const challenge = data.result.challenge
+
+    document.getElementById(
+        'challenge-detail'
+    ).innerHTML = `
+
+        <div class="card p-3">
+
+            <h3>${challenge.action}</h3>
+
+            <p>
+                Status:
+                ${challenge.status}
+            </p>
+
+            <button class="btn btn-success"
+                    onclick="approveChallenge(
+                        '${challenge.token}'
+                    )">
+
+                Approve
+
+            </button>
+
+            <button class="btn btn-danger ms-2"
+                    onclick="rejectChallenge(
+                        '${challenge.token}'
+                    )">
+
+                Reject
+
+            </button>
+
+        </div>
+
+    `
+}
+
+</script>
+    </t>
+
+</template>
+
+</odoo>
