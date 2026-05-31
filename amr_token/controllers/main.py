@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import logging
 import json
-import base64
+import logging
 
-from werkzeug.wrappers import Response
-
-from odoo import api, http, fields
-from odoo.http import request
+from odoo.http import Controller, Response, request, route
 
 _logger = logging.getLogger(__name__)
 
 
-class ControllerToken(http.Controller):
+class ControllerToken(Controller):
 
     def valid_response(self, status, data):
         return Response(
@@ -27,27 +23,29 @@ class ControllerToken(http.Controller):
     def make_response(self, status=200, **payload):
         return Response(
             response=json.dumps(
-                payload or {"error": "unknown_error", "error_description": "An unknown error occurred."}),
+                payload
+                or {"error": "unknown_error", "error_description": "An unknown error occurred."}
+            ),
             status=status,
-            headers=[("Content-Type", "application/json")]
+            headers=[("Content-Type", "application/json")],
         )
 
-    @http.route('/.well-known/openid-configuration', type='http', auth='public', methods=['GET'], csrf=False, )
+    @route('/.well-known/openid-configuration', type='http', auth='public', methods=['GET'], csrf=False)
     def well_known_openid_configuration(self):
         payload = request.env['amr.token.helper'].openid_configuration()
         return self.make_response(**payload)
 
-    @http.route("/.well-known/jwks.json", type='http', auth='public', methods=['GET'], csrf=False, )
+    @route("/.well-known/jwks.json", type='http', auth='public', methods=['GET'], csrf=False)
     def well_known_jwks(self):
         payload = request.env['amr.token.helper'].oidc_jwks()
         return self.make_response(**payload)
 
-    @http.route('/oidc/token', type='http', auth='none', methods=['POST'], csrf=False)
+    @route('/oidc/token', type='http', auth='none', methods=['POST'], csrf=False)
     def api_oidc_token(self, **kwargs):
         payload = request.env['amr.token.helper'].oidc_token(**kwargs)
         return self.make_response(**payload)
 
-    @http.route('/oidc/introspect', type='http', auth='none', methods=['GET', 'POST'], csrf=False)
+    @route('/oidc/introspect', type='http', auth='none', methods=['GET', 'POST'], csrf=False)
     def api_oidc_introspect(self, **kwargs):
         return self.oidc_introspect(**kwargs)
 
@@ -58,3 +56,8 @@ class ControllerToken(http.Controller):
             return self.make_response(**data)
         else:
             return self.make_response(401, **data)
+
+    @route(['/oidc/profile', '/oidc/userinfo'], type='http', auth='none', methods=['GET'], csrf=False)
+    def api_oidc_profile(self, **kwargs):
+        payload = request.env['amr.token.helper'].oidc_profile(**kwargs)
+        return self.make_response(**payload)

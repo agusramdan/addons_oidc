@@ -4,8 +4,5 @@
     <menuitem id="menu_public_key" name="JWKS Keys" sequence="40"
               action="action_amr_public_key" parent="base.menu_users" groups="base.group_no_one"
     />
-    <menuitem id="menu_user_public_key" name="User Public Keys" sequence="30"
-              action="action_user_public_key" parent="base.menu_users" groups="base.group_no_one"
-              />
 
 </odoo>

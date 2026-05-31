@@ -6,17 +6,18 @@ from odoo import api, fields, models
 class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
-    amr_token_algorithm = fields.Selection([
-        ("HS256", "HS256"),
-        ('RS256', 'RS256'),
-        ('ES256', 'ES256')
-    ], default='RS256', config_parameter='amr_token.algorithm',)
+    amr_token_algorithm = fields.Selection(
+        [("HS256", "HS256"), ("RS256", "RS256"), ("ES256", "ES256")],
+        default="RS256",
+        config_parameter="amr_token.algorithm",
+    )
 
     amr_token_signature_type = fields.Selection(
-        [("secret", "Secret"), ("public_key", "Public key")], required=True,
-        config_parameter='amr_token.signature_type'
+        [("secret", "Secret"), ("public_key", "Public Key")],
+        required=True,
+        config_parameter="amr_token.signature_type",
     )
-    amr_token_secret = fields.Char("Secret", config_parameter='amr_token.secret',)
+    amr_token_secret = fields.Char("Secret", config_parameter="amr_token.secret")
     amr_token_secret_algorithm = fields.Selection(
         [
             # https://pyjwt.readthedocs.io/en/stable/algorithms.html
@@ -24,7 +25,8 @@ class ResConfigSettings(models.TransientModel):
             ("HS384", "HS384 - HMAC using SHA-384 hash algorithm"),
             ("HS512", "HS512 - HMAC using SHA-512 hash algorithm"),
         ],
-        default="HS256", config_parameter='amr_token.secret_algorithm'
+        default="HS256",
+        config_parameter="amr_token.secret_algorithm",
     )
     amr_token_public_key_algorithm = fields.Selection(
         [
@@ -40,19 +42,32 @@ class ResConfigSettings(models.TransientModel):
             ("PS384", "PS384 - RSASSA-PSS using SHA-384 and MGF1 padding with SHA-384"),
             ("PS512", "PS512 - RSASSA-PSS using SHA-512 and MGF1 padding with SHA-512"),
         ],
-        default="RS256",config_parameter='amr_token.public_key_algorithm',
+        default="RS256",
+        config_parameter="amr_token.public_key_algorithm",
     )
-    amr_token_using_secret = fields.Boolean("Using Secret", compute='_compute_amr_token_using_secret',)
+    amr_token_using_secret = fields.Boolean(
+        "Using Secret",
+        compute="_compute_amr_token_using_secret",
+    )
 
-    amr_token_retention_in = fields.Integer("Retention in (sec)", config_parameter='amr_token.retention_in',)
-    amr_token_expires_in = fields.Integer("Expired in (sec)", config_parameter='amr_token.expires_in',)
-    amr_token_audience = fields.Char("Audience", config_parameter='database.uuid')
+    amr_token_retention_in = fields.Integer(
+        "Retention In (Seconds)",
+        config_parameter="amr_token.retention_in",
+    )
+    amr_token_expires_in = fields.Integer(
+        "Expires In (Seconds)",
+        config_parameter="amr_token.expires_in",
+    )
+    amr_token_audience = fields.Char("Audience", config_parameter="database.uuid")
 
     # module_amr_oidc = fields.Boolean("OIDC")
     # module_amr_oauth = fields.Boolean("Client OAuth")
     # module_amr_auto_login = fields.Boolean("Auto Login OAuth")
 
-    @api.depends('amr_token_algorithm')
+    @api.depends("amr_token_algorithm")
     def _compute_amr_token_using_secret(self):
         for record in self:
-            record.amr_token_using_secret = record.amr_token_algorithm == 'HS256'
+            record.amr_token_using_secret = record.amr_token_algorithm == "HS256"
+
+    # will remove
+    module_amr_token_oauth = fields.Boolean("Token OAuth")

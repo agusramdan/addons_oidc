@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import jwt
 
+import jwt
 from jwt import InvalidTokenError
+from cryptography.hazmat.primitives import serialization
+from cryptography.exceptions import UnsupportedAlgorithm
+
 from odoo import api, fields, models
-from odoo.http import request
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
-
-from odoo import models, fields
 
 
 class PublicKey(models.Model):
@@ -44,14 +45,24 @@ class PublicKey(models.Model):
     created_at = fields.Datetime(default=fields.Datetime.now)
     expires_at = fields.Datetime()
 
+    @api.constrains('public_key')
+    def _check_public_key(self):
+        for rec in self:
+            try:
+                serialization.load_pem_public_key(
+                    rec.public_key.encode()
+                )
+
+            except (ValueError, UnsupportedAlgorithm):
+                raise ValidationError("Invalid public key")
+
+    @api.model
     def get_jwks(self):
         list_key = []
         from cryptography.hazmat.primitives import serialization
         for key in self.search([('active', '=', True)]):
-            public_key = serialization.load_pem_public_key(
-                key.public_key.encode('utf-8')
-            )
-            #jwk = jwt.algorithms.Algorithm.to_jwk(public_key)
+            public_key = serialization.load_pem_public_key(key.public_key.encode('utf-8'))
+            # jwk = jwt.algorithms.Algorithm.to_jwk(public_key)
             if key.algorithm == 'RS256':
                 jwk = jwt.algorithms.RSAAlgorithm.to_jwk(public_key, as_dict=True)
             else:

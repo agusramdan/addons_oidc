@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 
-import logging
-import jwt
-import time
 import base64
+import logging
+import time
 
-from odoo import _, api, fields, models
+import jwt
+
+from odoo import _, api, models
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
@@ -55,12 +56,13 @@ class TokenHelper(models.AbstractModel):
         config_parameter = self.env['ir.config_parameter'].sudo()
         return config_parameter.get_param('amr_token.signature_type', 'secret')
 
+    @api.model
     def get_signature_algorithm(self):
         config_parameter = self.env['ir.config_parameter'].sudo()
         if config_parameter.get_param('amr_token.signature_type') == 'public_key':
-            return config_parameter.get_param('amr_token.public_key_algorithm') or "RS256"
+            return config_parameter.get_param('amr_token.public_key_algorithm', "RS256")
         else:
-            return config_parameter.get_param('amr_token.secret_algorithm') or "HS256"
+            return config_parameter.get_param('amr_token.secret_algorithm', "HS256")
 
     # def get_token_signing_alg(self):
     #     config_parameter = self.env['ir.config_parameter'].sudo()
@@ -71,11 +73,11 @@ class TokenHelper(models.AbstractModel):
 
     @api.model
     def get_expires_in(self):
-        return int(self.env['ir.config_parameter'].sudo().get_param('amr_token.expires_in')) or (60 * 60 * 24)
+        return int(self.env['ir.config_parameter'].sudo().get_param('amr_token.expires_in', 60 * 60 * 24))
 
     @api.model
     def get_retention_in(self):
-        return int(self.env['ir.config_parameter'].sudo().get_param('amr_token.retention_in')) or (60 * 60 * 4)
+        return int(self.env['ir.config_parameter'].sudo().get_param('amr_token.retention_in', 60 * 60 * 4))
 
     @api.model
     def get_secret(self):
@@ -105,9 +107,11 @@ class TokenHelper(models.AbstractModel):
                 "id_token",
             ],
             "subject_types_supported": [
-                "public"
+                "public",
             ],
-            "id_token_signing_alg_values_supported": [self.get_signature_algorithm()],
+            "id_token_signing_alg_values_supported": [
+                self.get_signature_algorithm(),
+            ],
             "scopes_supported": [
                 "openid",
                 "profile",
@@ -133,9 +137,8 @@ class TokenHelper(models.AbstractModel):
             "keys": self.env["amr.public.key"].sudo().get_jwks()
         }
 
-    def oidc_token(self, **kwargs):
-        grant_type = kwargs.get('grant_type')
-
+    @api.model
+    def oidc_token(self, grant_type=None, **kwargs):
         if grant_type == 'password':
             return self.do_password_grant(kwargs)
 
@@ -147,8 +150,9 @@ class TokenHelper(models.AbstractModel):
             return self.do_digital_signature_grant(kwargs)
 
         return {
-            'status': 401, 'error': "unsupported_grant_type",
-            "error_description": _("Grant Type % Not Support") % grant_type
+            'status': 401,
+            'error': "unsupported_grant_type",
+            "error_description": _("Grant Type '%s' is not supported") % grant_type
         }
 
     @api.model
@@ -161,7 +165,7 @@ class TokenHelper(models.AbstractModel):
 
         user = self.env['res.users'].sudo().get_user_by_username(username)
         if not user:
-            return {'status': 401, 'error': "invalid_grant", 'error_description': 'User Not Found'}
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'User not found'}
         try:
             user.with_user(user)._check_credentials(password)
         except Exception:
@@ -170,7 +174,6 @@ class TokenHelper(models.AbstractModel):
 
         client_id = data.pop('client_id', None)
         client_secret = data.pop('client_secret', None)
-
         access_token, _, expires_in = self.generate_user_token(user, **data)
         return {
             'access_token': access_token,
@@ -188,11 +191,11 @@ class TokenHelper(models.AbstractModel):
         data.update({
             'iss': self.get_issuer(),
             'aud': audience or self.get_audience(),
-            'scope': scope
+            'scope': scope,
         })
         challenge, _ = self.generate_token_asymmetric(data)
         return {
-            'challenge': challenge
+            'challenge': challenge,
         }
 
     @api.model
@@ -208,12 +211,20 @@ class TokenHelper(models.AbstractModel):
         })
         digital_signature, _ = self.generate_token_asymmetric(data)
         return {
-            'digital_signature': digital_signature
+            'digital_signature': digital_signature,
         }
 
+    @api.model
     def generate_user_token(self, user, audience=None, expires_in=None, scope='', **kw):
+
         audience = audience or kw.pop('aud', None)
         payload = dict(kw)
+        if user.is_user_machine():
+            payload['type'] = 'machine'
+        elif user.is_user_business():
+            payload['type'] = 'user'
+        elif user.is_user_technical():
+            payload['type'] = 'technical'
 
         payload.update({
             'uid': user.id,
@@ -245,7 +256,6 @@ class TokenHelper(models.AbstractModel):
         token = kwargs.get('access_token') or kwargs.get('token') or self.get_header_token() or self.get_bearer_token()
         if token:
             payload = self.validate(token)
-            _logger.info("Payload %s", payload)
             if payload and payload.get('uid'):
                 uid = payload.get('uid')
                 user = self.env['res.users'].sudo().browse(uid)
@@ -268,22 +278,54 @@ class TokenHelper(models.AbstractModel):
         data['db'] = self.env.cr.dbname
         return data
 
-    def encode(self, algorithm=None, alg=None, issuer=None, iss=None, audience=None, aud=None, **kw):
+    @api.model
+    def oidc_profile(self, **kwargs):
+        active = False
+        user = None
+        payload = {}
+        token = kwargs.get('access_token') or kwargs.get('token') or self.get_header_token() or self.get_bearer_token()
+        if token:
+            payload = self.validate(token)
+            if payload and payload.get('uid'):
+                uid = payload.get('uid')
+                user = self.env['res.users'].sudo().browse(uid)
+                active = user.exists()
+        if active:
+            data = dict(payload)
+            data.update(
+                uid=user.id,
+                user_id=user.id,
+                name=user.name,
+                login=user.login,
+            )
+            return self.oidc_profile_payload_response_enhance(data)
+        else:
+            return {'active': False, "error": "invalid_token"}
+
+    @api.model
+    def oidc_profile_payload_response_enhance(self, data):
+        data['db'] = self.env.cr.dbname
+        return data
+
+    @api.model
+    def encode(self, algorithm=None, alg=None, audience=None, aud=None, **kw):
         algorithm = alg or algorithm
-        issuer = iss or issuer
         audience = aud or audience
         scope = kw.pop('scope', '')
-        return self.generate_token(kw, algorithm=algorithm, issuer=issuer, audience=audience, scope=scope)
+        kw.pop('iss', None)
+        kw.pop('issuer', None)
+        return self.generate_token(kw, algorithm=algorithm, audience=audience, scope=scope)
 
+    @api.model
     def generate_token(self, payload, algorithm=None, issuer=None, expires_in=None, audience=None, scope=''):
         algorithm = algorithm or self.get_signature_algorithm()
         expires_in = expires_in or self.get_expires_in()
         expire = int(time.time()) + expires_in
         payload.update({
-            'iss': issuer or self.get_issuer(),
+            'iss': self.get_issuer() or issuer,
             'aud': audience or self.get_audience(),
             'exp': expire,
-            'scope': scope
+            'scope': scope,
         })
         if algorithm.startswith('HS'):
             _logger.warning("Token signed with HS algorithm, validating via introspection endpoint")
@@ -291,12 +333,14 @@ class TokenHelper(models.AbstractModel):
         else:
             return self.generate_token_asymmetric(payload, algorithm)
 
+    @api.model
     def generate_token_asymmetric(self, payload, algorithm="RS256"):
         jwt_key = self.env['amr.public.key'].sudo().search([('algorithm', '=', algorithm)])
         if not jwt_key:
-            raise Exception("Private Key Not Set")
+            raise Exception("Private Key not set")
         return jwt_key.generate_token(payload), payload
 
+    @api.model
     def generate_token_secret(self, payload, algorithm="HS256"):
         jwt_secret = self.get_secret()
         if not jwt_secret:
@@ -304,31 +348,44 @@ class TokenHelper(models.AbstractModel):
         return jwt.encode(
             payload,
             jwt_secret,
-            algorithm=algorithm
+            algorithm=algorithm,
         ), payload
 
-    def decode(self, token, *kw):
-        return self.validate(token)
+    @api.model
+    def decode(self, token, **kw):
+        return self.validate(token, **kw)
 
-    def validate(self, token):
+    @api.model
+    def validate(self, token, **kw):
         header = jwt.get_unverified_header(token)
         algorithm = header.get('alg')
+        audience = kw.pop('audience', None)
         if algorithm.startswith('HS'):
             _logger.warning("Token signed with HS algorithm, validating via introspection endpoint")
-            return self.validate_secret(token, algorithm=algorithm)
+            return self.validate_secret(token, algorithm=algorithm, audience=audience)
         else:
-            return self.validate_asymmetric(token, header.get('kid'), algorithm=algorithm)
+            return self.validate_asymmetric(token, header.get('kid'), algorithm=algorithm, audience=audience)
 
-    def validate_secret(self, token, algorithm="HS256"):
+    @api.model
+    def validate_secret(self, token, algorithm="HS256", audience=None):
         jwt_secret = self.get_secret()
+        if audience:
+            options = {"verify_aud": True}
+        else:
+            options = {"verify_aud": False}
         if not jwt_secret:
             raise Exception("JWT Secret not set")
         issuer = self.get_issuer()
-        return jwt.decode(token, jwt_secret, algorithms=[algorithm], issuer=issuer, options={"verify_aud": False})
+        return jwt.decode(token, jwt_secret, algorithms=[algorithm], issuer=issuer, audience=audience, options=options)
 
-    def validate_asymmetric(self, token, kid, algorithm="RS256"):
+    @api.model
+    def validate_asymmetric(self, token, kid, algorithm="RS256", audience=None):
         jwt_key = self.env['amr.public.key'].sudo().search([('algorithm', '=', algorithm), ('kid', '=', kid)])
         if not jwt_key:
-            raise Exception("Public Key Not Set")
+            raise Exception("Public Key not set")
+        if audience:
+            options = {"verify_aud": True}
+        else:
+            options = {"verify_aud": False}
         issuer = self.get_issuer()
-        return jwt_key.validate_token(token, issuer=issuer, options={"verify_aud": False})
+        return jwt_key.validate_token(token, issuer=issuer, audience=audience, options=options)

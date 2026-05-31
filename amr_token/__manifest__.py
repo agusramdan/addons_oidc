@@ -7,7 +7,7 @@
     'author': "Agus Muhammad Ramdan",
     'website': "http://www.agusramdan.tech",
     'category': 'API',
-    'version': '13.0.0.0.1',
+    'version': '13.0.0.0.2',
     'depends': ['base', 'base_setup', 'web', 'amr_resource'],
     'external_dependencies': {
         'python': ['pyjwt'],
@@ -16,7 +16,6 @@
         'security/ir.model.access.csv',
 
         'views/public_key_views.xml',
-        'views/user_public_key_views.xml',
         'views/menuitem.xml',
         'views/res_config_settings_views.xml',
     ],
