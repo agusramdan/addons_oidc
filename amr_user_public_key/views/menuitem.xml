@@ -1,0 +1,8 @@
+<odoo>
+
+    <!-- technical -->
+    <menuitem id="menu_user_public_key" name="User Public Keys" sequence="30"
+              action="action_user_public_key" parent="base.menu_users" groups="base.group_no_one"
+    />
+
+</odoo>

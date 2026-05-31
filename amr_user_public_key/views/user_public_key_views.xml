@@ -1,0 +1,111 @@
+<odoo>
+
+    <!-- ========================= -->
+    <!-- Tree View -->
+    <!-- ========================= -->
+    <record id="view_user_public_key_tree" model="ir.ui.view">
+        <field name="name">user.public.key.tree</field>
+        <field name="model">user.public.key</field>
+        <field name="arch" type="xml">
+            <tree string="User Public Keys">
+                <field name="user_id"/>
+                <field name="device_name"/>
+                <field name="device_id"/>
+                <field name="algorithm"/>
+                <field name="last_seen"/>
+            </tree>
+        </field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- Form View -->
+    <!-- ========================= -->
+    <record id="view_user_public_key_form" model="ir.ui.view">
+        <field name="name">user.public.key.form</field>
+        <field name="model">user.public.key</field>
+        <field name="arch" type="xml">
+            <form string="User Public Key">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="device_name"
+                                   placeholder="Device Name"/>
+                        </h1>
+                        <h2>
+                            <field name="device_id"
+                                   readonly="1"/>
+                        </h2>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="user_id"/>
+                            <field name="kid"/>
+                            <field name="algorithm"/>
+                        </group>
+                        <group>
+                            <field name="device_name"/>
+                            <field name="device_id"/>
+                            <field name="last_seen" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <!-- Public Key -->
+                        <page string="Public Key">
+                            <field name="public_key"
+                                   widget="text"
+                                   nolabel="1"
+                                   class="oe_inline"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- Search View -->
+    <!-- ========================= -->
+    <record id="view_user_public_key_search" model="ir.ui.view">
+        <field name="name">user.public.key.search</field>
+        <field name="model">user.public.key</field>
+        <field name="arch" type="xml">
+            <search string="Search User Public Keys">
+                <field name="user_id"/>
+                <field name="device_name"/>
+                <field name="device_id"/>
+                <field name="algorithm"/>
+                <filter string="Active"
+                        name="filter_active"
+                        domain="[('active', '=', True)]"/>
+                <filter string="Revoked"
+                        name="filter_revoked"
+                        domain="[('active', '=', False)]"/>
+                <group expand="0"
+                       string="Group By">
+                    <filter string="User"
+                            name="group_user"
+                            context="{'group_by': 'user_id'}"/>
+                    <filter string="Algorithm"
+                            name="group_algorithm"
+                            context="{'group_by': 'algorithm'}"/>
+                </group>
+
+            </search>
+        </field>
+    </record>
+
+
+    <!-- ========================= -->
+    <!-- Window Action -->
+    <!-- ========================= -->
+    <record id="action_user_public_key" model="ir.actions.act_window">
+        <field name="name">User Public Keys</field>
+        <field name="res_model">user.public.key</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id"
+               ref="view_user_public_key_search"/>
+    </record>
+
+</odoo>
