@@ -1,0 +1,9 @@
+<odoo>
+
+    <!-- technical -->
+    <menuitem id="menu_auth_challenge" name="Challenges" sequence="100"
+              action="action_auth_challenge" parent="base.menu_users" groups="base.group_no_one"
+
+    />
+
+</odoo>

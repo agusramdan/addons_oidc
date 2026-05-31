@@ -1,0 +1,136 @@
+<odoo>
+
+    <template id="mobile_page">
+        <t t-call="web.layout">
+            <div class="container mt-5">
+                <div class="card p-4">
+                    <h2>Mobile Web</h2>
+                    <div class="form-group mt-3">
+                        <label>Challenge Token</label>
+                        <input type="text" id="jti" class="form-control" t-att-value="request.params.get('jti')"/>
+                        <input type="hidden" id="nonce" name="nonce" t-att-value="request.params.get('nonce')" />
+                        <input type="hidden" id="action" name="action" t-att-value="request.params.get('action')" />
+                    </div>
+                    <button type="button" class="btn btn-primary mt-3" onclick="loadChallenge()">
+                        Load Challenge
+                    </button>
+                    <div id="challenge-detail" class="mt-4">
+                    </div>
+                </div>
+            </div>
+
+            <script type="text/javascript">
+
+                async function loadChallenge() {
+                    const token =
+                        document.getElementById(
+                            'jti'
+                        ).value;
+
+                    if (!token) {
+                        alert('Token required');
+                        return;
+                    }
+
+                    const response = await fetch(
+                        `/mobile/challenge/${token}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: '{}'
+                        }
+                    );
+
+                    const data = await response.json();
+                    console.log(data);
+                    if (!data.result) {
+                        alert('Invalid response');
+                        return;
+                    }
+
+                    if (!data.result.success) {
+                        alert('Challenge not found');
+                        return;
+                    }
+                    const challenge = data.result.challenge;
+                    document.getElementById(
+                        'challenge-detail'
+                    ).innerHTML = `
+                        <div class="card p-3">
+                            <h3>
+                                ${challenge.action}
+                            </h3>
+                            <p>
+                                Status:
+                                ${challenge.status}
+                            </p>
+
+                            <button class="btn btn-success"
+                                    onclick="approveChallenge(
+                                        '${challenge.jti}'
+                                    )">
+
+                                Approve
+                            </button>
+                            <button class="btn btn-danger ms-2"
+                                    onclick="rejectChallenge(
+                                        '${challenge.jti}'
+                                    )">
+
+                                Reject
+                            </button>
+                        </div>
+
+                    `;
+                }
+
+                async function approveChallenge(token) {
+
+                    const response = await fetch(
+                        `/mobile/approve/${token}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: '{}'
+                        }
+                    );
+
+                    const data = await response.json();
+
+                    console.log(data);
+
+                    alert('Approved');
+
+                    loadChallenge();
+                }
+
+                async function rejectChallenge(token) {
+
+                    const response = await fetch(
+                        `/mobile/reject/${token}`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: '{}'
+                        }
+                    );
+
+                    const data = await response.json();
+                    console.log(data);
+                    alert('Rejected');
+                    loadChallenge();
+                }
+
+            </script>
+
+        </t>
+
+    </template>
+
+</odoo>
