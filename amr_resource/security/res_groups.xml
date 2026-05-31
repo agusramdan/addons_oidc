@@ -4,11 +4,13 @@
         <record id="group_machine" model="res.groups">
             <field name="name">Machine/Client/Service User</field>
             <field name="category_id" ref="base.module_category_hidden"/>
+            <field name="users" eval="[(4, ref('base.user_root'))]" />
         </record>
 
         <record id="group_technical" model="res.groups">
             <field name="name">Technical User</field>
             <field name="category_id" ref="base.module_category_hidden"/>
+            <field name="users" eval="[(4, ref('base.user_admin'))]" />
         </record>
 
         <record id="user_machine_template" model="res.users">
@@ -22,6 +24,5 @@
             <!-- assign group machine -->
             <field name="groups_id" eval="[(4, ref('amr_resource.group_machine'))]"/>
         </record>
-
     </data>
 </odoo>

@@ -19,6 +19,10 @@ class ResourceAccessToken(models.AbstractModel):
     _description = 'Resource Server'
 
     @api.model
+    def is_local_issuer(self, issuer):
+        return self.env['ir.config_parameter'].sudo().get_param('web.base.url') == issuer
+
+    @api.model
     def get_issuer(self):
         config_param = self.env['ir.config_parameter'].sudo()
         issuer = config_param.get_param('amr_resource.issuer', 'web.base.url')
@@ -31,7 +35,7 @@ class ResourceAccessToken(models.AbstractModel):
         return config_param.get_param(amr_resource_audience) or config_param.get_param('web.base.url')
 
     @api.model
-    def get_audiences(self):
+    def get_audiences(self, issuer=None):
         return [self.get_audience()]
 
     @api.model
@@ -55,6 +59,7 @@ class ResourceAccessToken(models.AbstractModel):
     def decode(self, token, **kw):
         return self.validate(token)
 
+    @api.model
     def generate_token(self, client_id=None, client_secret=None, iss=None, issuer=None, issuer_url=None, **kw):
         issuer_url = iss or issuer or issuer_url
         if not issuer_url:
@@ -90,6 +95,7 @@ class ResourceAccessToken(models.AbstractModel):
         response.raise_for_status()
         return response.json()
 
+    @api.model
     def validate_hs(self, token, **kw):
         result = self.introspect_token(token, **kw)
         if not result.get('active'):
@@ -97,6 +103,7 @@ class ResourceAccessToken(models.AbstractModel):
         return result
 
     # helper will call from Controller
+    @api.model
     def validate(self, token):
         header = jwt.get_unverified_header(token)
         alg = header.get('alg')
@@ -106,8 +113,8 @@ class ResourceAccessToken(models.AbstractModel):
         payload = jwt.decode(
             token,
             options={
-                "verify_signature": False
-            }
+                "verify_signature": False,
+            },
         )
 
         issuer = payload.get('iss')
@@ -119,7 +126,7 @@ class ResourceAccessToken(models.AbstractModel):
             signing_key.key,
             algorithms=[alg],
             issuer=issuer,
-            audience=self.get_audiences()
+            audience=self.get_audiences(issuer)
         )
         if payload:
             if 'kid' not in payload:
@@ -128,24 +135,26 @@ class ResourceAccessToken(models.AbstractModel):
                 payload['alg'] = alg
         return payload
 
+    @api.model
     def get_validate_user(self, token):
         validate = self.validate(token)
-        return validate if validate else None
+        return validate or None
 
+    @api.model
     def get_user_match(self, validation):
         email = validation.get('email')
         if email:
             return self.sudo().env['res.users'].search([('email', '=', email)], limit=1)
         return None
 
+    @api.model
+    def get_user_token_login(self, token):
+        validate = self.sudo().validate(token)
+        return self.get_user_match(validate)
+
     def get_uid(self, payload):
         user = self.get_user_match(payload)
         return user and user.id
-
-    def get_user_token_login(self, token):
-        resource_helper = self.sudo()
-        validate = self.sudo().validate(token)
-        return resource_helper.get_user_match(validate)
 
     @api.model
     def is_user_match(self, user, payload):
