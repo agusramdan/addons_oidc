@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
 
-import logging
-import jwt
-import time
 import base64
+import logging
 
-from datetime import datetime, timedelta
-
-from jwt import InvalidTokenError
-from odoo import _, api, fields, models
+from odoo import api, models
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
+JWT_BEARER = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
 
 class TokenHelper(models.AbstractModel):
     _inherit = 'amr.token.helper'
+
     # helper will call from Controller
     @api.model
     def get_bearer_token(self):
@@ -23,7 +21,7 @@ class TokenHelper(models.AbstractModel):
         if not auth or not auth.startswith("Bearer "):
             return None
         data = auth.split(" ", 1)
-        return data[1] if len(data) >1 else None
+        return data[1] if len(data) > 1 else None
 
     @api.model
     def get_basic_auth(self):
@@ -48,7 +46,7 @@ class TokenHelper(models.AbstractModel):
         result.update(
             {
                 "authorization_endpoint": f"{issuer}/oidc/authorize",
-                "userinfo_endpoint": f"{issuer}/oidc/userinfo",
+                # "userinfo_endpoint": f"{issuer}/oidc/userinfo",
                 # "jwks_uri": f"{issuer}/oidc/jwks",
                 "response_types_supported": [
                     "code",
@@ -56,10 +54,10 @@ class TokenHelper(models.AbstractModel):
                     "id_token",
                 ],
                 # "subject_types_supported": [
-                #     "public"
+                #     "public",
                 # ],
                 # "id_token_signing_alg_values_supported": [
-                #     "RS256"
+                #     "RS256",
                 # ],
                 "scopes_supported": [
                     "openid",
@@ -82,29 +80,86 @@ class TokenHelper(models.AbstractModel):
         )
         return result
 
-    def oidc_token(self, **kwargs):
-        grant_type = kwargs.get('grant_type')
-
+    @api.model
+    def oidc_token(self, grant_type=None, **kwargs):
+        if grant_type == 'client_credentials':
+            return self.do_client_credentials(kwargs)
         if grant_type == 'refresh_token':
             return self.do_refresh_grant(kwargs.get('refresh_token'))
 
         if grant_type == 'trusted_token':
             return self.do_trusted_grant(kwargs.get('access_token'))
 
-        return super().oidc_token(**kwargs)
+        return super().oidc_token(grant_type=grant_type, **kwargs)
 
+    @api.model
+    def do_password_grant(self, data):
+        try:
+            client_id = data.pop('client_id')
+        except KeyError:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Missing client_id'}
+        client = self.env['oidc.client'].sudo().search([('client_id', '=', client_id)])
+        if not client:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client not found.'}
+        client_secret = data.pop('client_secret', None)
+        if client_secret:
+            user = client.user_id
+            if not user:
+                return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client invalid.'}
+            try:
+                user.with_user(user)._check_credentials(client_secret)
+            except Exception:
+                _logger.exception("Error _check_credentials")
+                return {'status': 401, 'error': "invalid_grant"}
+        return super().do_password_grant(data)
+
+    @api.model
+    def do_client_credentials(self, data):
+
+        client_assertion_type = data.pop('client_assertion_type', None)
+        client_assertion = data.pop('client_assertion', None)
+
+        try:
+            client_id = data.pop('client_id')
+        except KeyError:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Missing client_id'}
+
+        client = self.env['oidc.client'].sudo().search([('client_id', '=', client_id)])
+        if not client:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client not found.'}
+
+        user = client.user_id
+        if not user:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client invalid.'}
+
+        client_secret = data.pop('client_secret', None)
+        if client_secret:
+            try:
+                user.with_user(user)._check_credentials(client_secret)
+            except Exception:
+                _logger.exception("Error _check_credentials")
+                return {'status': 401, 'error': "invalid_grant"}
+        else:
+            return {'status': 401, 'error': "invalid_grant"}
+
+        access_token, _, expires_in = self.generate_user_token(user, type='machine', **data)
+        return {
+            'access_token': access_token,
+            'token_type': 'Bearer',
+            'expires_in': expires_in,
+        }
 
     @api.model
     def do_refresh_grant(self, refresh_token=None):
         if not refresh_token:
-            return {'status':400, 'error':"invalid_grant"}
+            return {'status': 400, 'error': "invalid_grant"}
 
         payload = self.env['oidc.refresh.token'].validate_token(refresh_token)
 
         if not payload or not payload.get('token'):
-            return {'status':400, 'error':"invalid_grant",'error_description': "Invalid or expired token"}
+            return {'status': 400, 'error': "invalid_grant", 'error_description': "Invalid or expired token"}
         user = self.env['res.users'].sudo().get_user_by_username(payload['sub'])
-        return self.generate_user_token(user,payload)
+        return self.generate_user_token(user, payload)
 
     @api.model
     def oidc_introspect(self, **kwargs):
@@ -132,11 +187,6 @@ class TokenHelper(models.AbstractModel):
             return {'active': False, "error": "invalid_token"}
 
     @api.model
-    def oidc_introspect_payload_response_enhance(self, data):
-        data['db'] = self.env.cr.dbname
-        return data
-
-    @api.model
     def oidc_profile(self, **kwargs):
         active = False
         payload = None
@@ -148,7 +198,6 @@ class TokenHelper(models.AbstractModel):
                 uid = payload.get('uid')
                 user = request.env['res.users'].sudo().browse(uid)
                 active = user.exists()
-
         if active:
             data = dict(payload)
             data.update(
@@ -160,8 +209,6 @@ class TokenHelper(models.AbstractModel):
             )
             if 'status' in data:
                 data.pop('status')
-            return data
+            return self.oidc_profile_payload_response_enhance(data)
         else:
-            return {'status': 401, "error": "invalid_token", "error_description": "Invalid Token", }
-
-
+            return {'status': 401, "error": "invalid_token", "error_description": "Invalid token"}

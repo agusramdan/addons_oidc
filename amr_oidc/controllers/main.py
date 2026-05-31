@@ -1,24 +1,22 @@
 # -*- coding: utf-8 -*-
 
-import logging
-import json
 import base64
-
+import json
+import logging
 from urllib.parse import urlencode
 
 import werkzeug
-from odoo import api, fields, http
-from odoo.http import request
-from werkzeug import url_encode
 
-from odoo.addons.amr_token.controllers import main
+from odoo import api
+from odoo.addons.amr_token.controllers.main import ControllerToken
+from odoo.http import request, route
 
 _logger = logging.getLogger(__name__)
 
 
-class ControllerOIDC(main.ControllerToken):
+class ControllerOIDC(ControllerToken):
 
-    @http.route(['/oidc/authorize', '/oidc/auth'], type='http', auth='public', csrf=False)
+    @route(['/oidc/authorize', '/oidc/auth'], type='http', auth='public', csrf=False)
     def authorize(self, **params):
         self.is_invalid_parameter_authorize()
         user = request.env.user
@@ -38,22 +36,21 @@ class ControllerOIDC(main.ControllerToken):
             target = '/oidc/continue?params=%s&client_name=%s' % (base64params, client.name)
         return werkzeug.utils.redirect(target)
 
-    @http.route('/oidc/continue', type='http', auth='public', website=True, methods=['GET'], )
+    @route('/oidc/continue', type='http', auth='public', website=True, methods=['GET'])
     def continue_page(self, params=None, client_name=None):
         return request.render('amr_oidc.custom_oidc_continue_template', {'params': params, 'client_name': client_name})
 
-    @http.route('/oidc/login_form', type='http', auth='public', website=True, methods=['GET'], )
+    @route('/oidc/login_form', type='http', auth='public', website=True, methods=['GET'])
     def login_page(self, params=None, client_name=None):
         return request.render('amr_oidc.custom_login_template', {'params': params, 'client_name': client_name})
 
-    @http.route('/oidc/authorize_continue', type='http', auth='user', csrf=False)
+    @route('/oidc/authorize_continue', type='http', auth='user', csrf=False)
     def authorize_continue(self, params=None):
         kwargs = json.loads(base64.urlsafe_b64decode(params.encode()).decode())
         return self.oidc_authorize(**kwargs)
 
-    @http.route('/oidc/login/submit', type='http', auth='public', methods=['POST'], csrf=False, )
+    @route('/oidc/login/submit', type='http', auth='public', methods=['POST'], csrf=False)
     def login_submit(self, login=None, password=None, params=None):
-
         db = request.session.db
         try:
             uid = request.session.authenticate(db, login, password)
@@ -65,7 +62,7 @@ class ControllerOIDC(main.ControllerToken):
                 'amr_oidc.custom_login_template',
                 {
                     'error': 'Invalid login/password',
-                    'params': params
+                    'params': params,
                 }
             )
         kwargs = json.loads(base64.urlsafe_b64decode(params.encode()).decode())
@@ -102,25 +99,21 @@ class ControllerOIDC(main.ControllerToken):
         scope = params.get('scope')
         state = params.get('state')
 
-        client = request.env['oidc.client'].search([('client_id', '=', client_id), ], limit=1)
+        client = request.env['oidc.client'].search([('client_id', '=', client_id)], limit=1)
         if not redirect_uri and client.redirect_uri:
             redirect_uri = client.redirect_uri
 
         # hanya support authorization code flow
         if response_type == 'code':
             authorization_code = client.create_authorization_code(redirect_uri=redirect_uri, scope=scope)
-            query = {
-                'code': authorization_code.code
-            }
+            query = {'code': authorization_code.code}
             if state:
                 query['state'] = state
 
-            redirect_url = (
-                f'{authorization_code.redirect_uri}?{urlencode(query)}'
-            )
+            redirect_url = f'{authorization_code.redirect_uri}?{urlencode(query)}'
 
         elif response_type == 'token':
-            access_token = client.create_access_token(redirect_uri=redirect_uri, scope=scope, )
+            access_token = client.create_access_token(redirect_uri=redirect_uri, scope=scope)
             query = {
                 'access_token': access_token.token,
                 'token_type': 'Bearer',
@@ -130,16 +123,8 @@ class ControllerOIDC(main.ControllerToken):
             if state:
                 query['state'] = state
 
-            redirect_url = (
-                f'{access_token.redirect_uri}'
-                f'#{urlencode(query)}'
-            )
+            redirect_url = f'{access_token.redirect_uri}#{urlencode(query)}'
         else:
             return self.invalid_response(400, 'unsupported_response_type')
 
         return werkzeug.utils.redirect(redirect_url)
-
-    @http.route(['/oidc/profile', '/oidc/userinfo'], type='http', auth='none', methods=['GET'], csrf=False)
-    def api_oidc_profile(self, **kwargs):
-        payload = request.env['amr.token.helper'].oidc_profile(**kwargs)
-        return self.make_response(**payload)

@@ -2,14 +2,12 @@
 
 import base64
 import logging
-import jwt
-import time
-
-from datetime import datetime, timedelta
-
-from jwt import InvalidTokenError
-from odoo import api, fields, models
+from datetime import timedelta
 from urllib.parse import urlparse
+
+import jwt
+
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
@@ -25,7 +23,7 @@ class OidcClient(models.Model):
 
     active = fields.Boolean(default=True)
     name = fields.Char()
-
+    user_id = fields.Many2one('res.users', help="machine user or bot", default=1)
     client_id = fields.Char(
         "Client ID",
         help="Use web.base.url + redirect_path as redirect_uri if redirect_uri is not set."
@@ -45,9 +43,7 @@ class OidcClient(models.Model):
         if not self.redirect_uri or not redirect_uri:
             return True
 
-        parsed = urlparse(
-            redirect_uri
-        )
+        parsed = urlparse(redirect_uri)
 
         if not parsed.scheme:
             _logger.error("Error %s parsed.scheme. %s", parsed.scheme, redirect_uri)
@@ -59,17 +55,11 @@ class OidcClient(models.Model):
         # client.redirect_uri_ids
         # .mapped('uri')
         allowed_uris = (self.redirect_uri.splitlines() or []) + [self.redirect_uri]
-        normalized_redirect = (
-            f'{parsed.scheme}://'
-            f'{parsed.netloc}'
-            f'{parsed.path}'
-        ).strip()
+        normalized_redirect = f'{parsed.scheme}://{parsed.netloc}{parsed.path}'.strip()
 
         for allowed_uri in allowed_uris:
 
-            allowed_parsed = urlparse(
-                allowed_uri
-            )
+            allowed_parsed = urlparse(allowed_uri)
 
             normalized_allowed = (
                 f'{allowed_parsed.scheme}://'
@@ -81,16 +71,17 @@ class OidcClient(models.Model):
                 return True
             _logger.error("Error [%s] != [%s]", normalized_redirect, normalized_allowed)
 
-        _logger.error("Error %s .", normalized_redirect)
+        _logger.error("Error %s.", normalized_redirect)
 
         return False
 
+    @api.model
     def client_auth(self, token):
         try:
             decoded = base64.b64decode(token).decode()
             client_id, client_secret = decoded.split(':', 1)
             client = self.sudo().search([('client_id', '=', client_id)], limit=1)
-            if client and client.client_secret == client_secret:
+            if client.client_secret == client_secret:
                 return client
             else:
                 return None
@@ -107,10 +98,10 @@ class OidcClient(models.Model):
             'user_id': self.env.user.id,
             'redirect_uri': redirect_uri,
             'scope': scope,
-            'expired_at': fields.Datetime.now() + timedelta(minutes=5)
+            'expired_at': fields.Datetime.now() + timedelta(minutes=5),
         })
 
-    def create_access_token(self, redirect_uri=None, scope='',**kw):
+    def create_access_token(self, redirect_uri=None, scope='', **kw):
         if self.redirect_path:
             redirect_uri = self.web_base_url + REDIRECT_MODE.get(self.redirect_path)
         else:
@@ -133,7 +124,7 @@ class OidcClient(models.Model):
                 }
             )
             client = self.sudo().search([('client_id', '=', payload.get('aud'))], limit=1)
-        audience = client and client.client_id
+        audience = client.client_id
         return self.env['amr.token'].validate(token, audience=audience)
 
     def validate_refresh_token(self, token):

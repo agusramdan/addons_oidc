@@ -1,26 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import base64
 import logging
-import jwt
-import time
-
-from datetime import datetime, timedelta
-
-from jwt import InvalidTokenError
-from odoo import api, fields, models
-from datetime import timedelta
-from urllib.parse import urlencode
-
-from odoo import http, fields
-from odoo.http import request
-
-_logger = logging.getLogger(__name__)
-
-
 import uuid
 
-from odoo import models, fields
+from odoo import fields, models
+
+_logger = logging.getLogger(__name__)
 
 
 class OidcAuthorizationCode(models.Model):
@@ -30,15 +15,15 @@ class OidcAuthorizationCode(models.Model):
     code = fields.Char(
         default=lambda self: str(uuid.uuid4()),
         required=True,
-        index=True
+        index=True,
     )
     client_id = fields.Many2one(
         'oidc.client',
-        required=True
+        required=True,
     )
     user_id = fields.Many2one(
         'res.users',
-        required=True
+        required=True,
     )
     redirect_uri = fields.Text(required=True)
     scope = fields.Char()

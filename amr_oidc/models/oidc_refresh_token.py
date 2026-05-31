@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import jwt
-import time
 import logging
+import time
 import uuid
+from datetime import timedelta
 
-from datetime import datetime, timedelta
+import jwt
 from jwt import InvalidTokenError
+
 from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ class AccessToken(models.Model):
 
     @api.model
     def get_expires_in(self):
-        return int(self.env['ir.config_parameter'].sudo().get_param('amr_token.expires_in')) or (60 * 60 * 24)
+        return int(self.env['ir.config_parameter'].sudo().get_param('amr_token.expires_in', 60 * 60 * 24))
 
     @api.model
     def get_secret(self):
@@ -36,7 +37,7 @@ class AccessToken(models.Model):
     user_id = fields.Many2one(
         "res.users",
         required=True,
-        ondelete="cascade"
+        ondelete="cascade",
     )
     expires_at = fields.Datetime(required=True)
     revoked = fields.Boolean(default=False)
@@ -49,11 +50,12 @@ class AccessToken(models.Model):
     def generate_token():
         return str(uuid.uuid4())
 
+    @api.model
     def create_refresh_token(self, user, **kw):
         token = self.generate_token()
-        expires_in = (60 * 60 * 24 * 14)
+        expires_in = 60 * 60 * 24 * 14
         expire = int(time.time()) + expires_in
-        expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        expires_at = fields.Datetime.now() + timedelta(seconds=expires_in)
 
         self.create({
             "token": token,
@@ -64,7 +66,7 @@ class AccessToken(models.Model):
             'token': token,
             'data': f"{user.id}-{user.email}-{time.time()}-{self.env.cr.dbname}",
             'iss': self.get_issuer(),
-            'exp': expire
+            'exp': expire,
         }
         aud = kw.get('aud')
         resource = kw.get('resource')
@@ -75,29 +77,28 @@ class AccessToken(models.Model):
         return jwt.encode(
             payload,
             self.get_secret(),
-            algorithm=self.get_algorithm()
+            algorithm=self.get_algorithm(),
         )
 
+    @api.model
     def validate_token(self, token, audience, options=None):
         try:
-            options = options or {
-                "require": ["exp", "iss", "aud"]
-            }
+            options = options or {"require": ["exp", "iss", "aud"]}
             payload = jwt.decode(
                 token,
                 self.get_secret(),
                 issuer=self.get_issuer(),
                 audience=audience,
                 algorithms=[self.get_algorithm()],
-                options=options
+                options=options,
             )
-            if payload.get("token"):
-                rec = self.sudo().search(
-                    [("token", "=", payload.get("token")),
-                     ("revoked", "=", False),
-                     ('expires_at', '<', fields.Datetime.now())],
-                    limit=1
-                )
+            token = payload.get("token")
+            if token:
+                rec = self.sudo().search([
+                    ("token", "=", token),
+                    ("revoked", "=", False),
+                    ('expires_at', '<', fields.Datetime.now())
+                ], limit=1)
                 if rec:
                     return payload
         # except InvalidIssuerError:
