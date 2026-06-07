@@ -13,7 +13,7 @@ class IrHttp(models.AbstractModel):
     def _auth_method_auto_login(cls):
         # Menggunakan token oidc untuk handle API call
         heleper = request.env['amr.resource.helper'].sudo()
-        token=heleper.get_param_token()
+        token = heleper.get_param_token()
         # VALIDASI TOKEN
         validate = heleper.get_validate_user(token)
         if not validate:
