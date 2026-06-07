@@ -372,6 +372,7 @@ class TokenHelper(models.AbstractModel):
         if audience:
             options = {"verify_aud": True}
         else:
+            audience = None
             options = {"verify_aud": False}
         if not jwt_secret:
             raise Exception("JWT Secret not set")

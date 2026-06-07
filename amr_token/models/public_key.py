@@ -4,6 +4,7 @@ import logging
 
 import jwt
 from jwt import InvalidTokenError
+from jwt.algorithms import RSAAlgorithm , ECAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import UnsupportedAlgorithm
 
@@ -62,16 +63,15 @@ class PublicKey(models.Model):
         from cryptography.hazmat.primitives import serialization
         for key in self.search([('active', '=', True)]):
             public_key = serialization.load_pem_public_key(key.public_key.encode('utf-8'))
-            # jwk = jwt.algorithms.Algorithm.to_jwk(public_key)
-            if key.algorithm == 'RS256':
-                jwk = jwt.algorithms.RSAAlgorithm.to_jwk(public_key, as_dict=True)
+            if key.algorithm in ['ES256', 'ES256K', 'ES384', 'ES512']:
+                jwk_dict = ECAlgorithm.to_jwk(public_key, as_dict=True)
             else:
-                jwk = jwt.algorithms.ECAlgorithm.to_jwk(public_key, as_dict=True)
+                jwk_dict = RSAAlgorithm.to_jwk(public_key, as_dict=True)
             if key.is_signing:
-                jwk['use'] = "sig"
-            jwk['kid'] = key.kid
-            jwk['alg'] = key.algorithm
-            list_key.append(jwk)
+                jwk_dict['use'] = "sig"
+            jwk_dict['kid'] = key.kid
+            jwk_dict['alg'] = key.algorithm
+            list_key.append(jwk_dict)
         return list_key
 
     def generate_token(self, payload):
