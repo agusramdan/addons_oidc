@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import jwt
 import requests
 import re
 
-from jwt import PyJWKClient, InvalidTokenError
 from odoo import api, fields, models
 from odoo.http import request
 
@@ -14,7 +12,7 @@ _logger = logging.getLogger(__name__)
 AUTHORIZATION_RE = re.compile(r"^Bearer ([^ ]+)$")
 
 
-class ResourceAccessToken(models.AbstractModel):
+class ResourceHelper(models.AbstractModel):
     _name = 'amr.resource.helper'
     _description = 'Resource Server'
 
@@ -78,6 +76,7 @@ class ResourceAccessToken(models.AbstractModel):
     def introspect_token(self, token, client_id=None, client_secret=None, url=None, iss=None, **kw):
         if not url:
             if not iss:
+                import jwt
                 payload = jwt.decode(token, options={"verify_signature": False})
                 iss = payload.get('iss')
             oidc_config = self.get_oidc_config(iss)
@@ -99,12 +98,15 @@ class ResourceAccessToken(models.AbstractModel):
     def validate_hs(self, token, **kw):
         result = self.introspect_token(token, **kw)
         if not result.get('active'):
+            from jwt import InvalidTokenError
             raise InvalidTokenError('Token is not active')
         return result
 
     # helper will call from Controller
     @api.model
     def validate(self, token):
+        import jwt
+        from jwt import PyJWKClient
         header = jwt.get_unverified_header(token)
         alg = header.get('alg')
         if alg.startswith('HS'):
@@ -168,7 +170,7 @@ class ResourceAccessToken(models.AbstractModel):
 
     @classmethod
     def get_param_token(cls):
-        return request.params.get("access_token") or request.params.get("token")
+        return request.httprequest.args.get("access_token") or request.httprequest.args.get("token")
 
     @classmethod
     def get_header_token(cls):

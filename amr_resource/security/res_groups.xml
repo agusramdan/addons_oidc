@@ -19,8 +19,8 @@
             <field name="email">machine@system.local</field>
 
             <!-- penting: non-share = internal system user -->
-            <field name="share">False</field>
-
+            <field name="share" eval="False"/>
+            <field name="active" eval="False"/>
             <!-- assign group machine -->
             <field name="groups_id" eval="[(4, ref('amr_resource.group_machine'))]"/>
         </record>

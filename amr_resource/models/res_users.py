@@ -29,22 +29,18 @@ class Base(models.AbstractModel):
 class ResUsers(models.Model):
     _inherit = 'res.users'
 
-    # @tools.ormcache('self.id')
     def is_user_machine(self):
         self.ensure_one()
         return bool(self.has_group('amr_resource.group_machine'))
 
-    # @tools.ormcache('self.id')
     def is_user_technical(self):
         self.ensure_one()
         return bool(self.has_group('amr_resource.group_technical'))
 
-    # @tools.ormcache('self.id')
     def is_user_business(self):
         self.ensure_one()
         return not self.share and not self.is_user_technical() and self.is_user_machine()
 
-    # @tools.ormcache('self.id')
     def is_user_allow_create_token(self):
         self.ensure_one()
         return True
@@ -92,17 +88,3 @@ class ResUsers(models.Model):
             return self
 
         return self.env.with_context(__access_token_context=payload)
-
-    # @api.model_create_multi
-    # @api.returns('self', lambda value: value.id)
-    # def create(self, vals_list):
-    #     type(self).is_user_machine.clear_cache(self.env)
-    #     type(self).is_user_technical.clear_cache(self.env)
-    #     type(self).is_user_business.clear_cache(self.env)
-    #     return super(ResUsers, self).create(vals_list)
-    #
-    # def write(self, vals):
-    #     type(self).is_user_machine.clear_cache(self.env)
-    #     type(self).is_user_technical.clear_cache(self.env)
-    #     type(self).is_user_business.clear_cache(self.env)
-    #     return super(ResUsers, self).write(vals)
