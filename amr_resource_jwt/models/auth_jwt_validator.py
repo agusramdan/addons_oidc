@@ -24,16 +24,9 @@ _logger = logging.getLogger(__name__)
 class AuthJwtValidator(models.Model):
     _inherit = "auth.jwt.validator"
 
-    audience = fields.Char(
-        required=True, help="Comma separated list of audiences, to validate aud."
-    )
-    issuer = fields.Char(required=True, help="To validate iss.")
     user_id_strategy = fields.Selection(
-        selection_add = [('user_match', 'User Match')]
+        selection_add=[('user_match', 'User Match')]
     )
-    static_user_id = fields.Many2one("res.users", default=1)
-    partner_id_strategy = fields.Selection([("email", "From email claim")])
-    partner_id_required = fields.Boolean()
 
     def _get_uid(self, payload):
         if self.user_id_strategy == 'user_match':
@@ -43,9 +36,9 @@ class AuthJwtValidator(models.Model):
         return super()._get_uid(payload)
 
     @api.model
-    def get_validator(self, validator_name,issuer,algorithm):
+    def get_validator(self, validator_name, issuer, algorithm):
         validator = self.search([
-            ('signature_type','=','public_key'),
+            ('signature_type', '=', 'public_key'),
             ('public_key_algorithm', '=', algorithm)
         ])
         if len(validator) != 1:
@@ -55,21 +48,18 @@ class AuthJwtValidator(models.Model):
             raise AmbiguousJwtValidator()
         return validator
 
-    def get_audience(self):
-        return self.audience.split(",") + self.env['amr.resource.helper'].get_audiences()
-
     @api.model
     def decode(self, token):
         header = jwt.get_unverified_header(token)
         algorithm = header.get('alg')
         if algorithm.startswith('HS'):
-            domain =[
-                ('signature_type', '=', 'public_key'),
-                ('public_key_algorithm', '=', algorithm)
+            domain = [
+                ('signature_type', '=', 'secret'),
+                ('secret_algorithm', '=', algorithm)
             ]
         else:
             domain = [
-                ('signature_type', '=', 'secret'),
+                ('signature_type', '=', 'public_key'),
                 ('public_key_algorithm', '=', algorithm)
             ]
         payload = jwt.decode(
@@ -79,7 +69,7 @@ class AuthJwtValidator(models.Model):
             }
         )
         issuer = payload.get('iss')
-        domain.append(('issuer','=',issuer))
+        domain.append(('issuer', '=', issuer))
         records = self.sudo().search(domain)
         for rec in records:
             try:
@@ -87,39 +77,6 @@ class AuthJwtValidator(models.Model):
                 payload['kid'] = header.get('kid')
                 payload['alg'] = algorithm
                 return payload
-            except :
+            except:
                 pass
         raise UnauthorizedInvalidToken()
-
-    def _decode(self, token):
-        """Validate and decode a JWT token, return the payload."""
-        if self.signature_type == "secret":
-            key = self.secret_key
-            algorithm = self.secret_algorithm
-        else:
-            try:
-                header = jwt.get_unverified_header(token)
-            except Exception as e:
-                _logger.info("Invalid token: %s", e)
-                raise UnauthorizedInvalidToken()
-            key = self._get_key(header.get("kid"))
-            algorithm = self.public_key_algorithm
-        try:
-            payload = jwt.decode(
-                token,
-                key=key,
-                algorithms=[algorithm],
-                options=dict(
-                    require=["exp", "aud", "iss"],
-                    verify_exp=True,
-                    verify_aud=True,
-                    verify_iss=True,
-                ),
-                audience=self.get_audience(),
-                issuer=self.issuer,
-            )
-        except Exception as e:
-            _logger.info("Invalid token: %s", e)
-            raise UnauthorizedInvalidToken()
-        return payload
-
