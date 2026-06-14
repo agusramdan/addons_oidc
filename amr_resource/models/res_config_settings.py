@@ -33,6 +33,11 @@ class ResConfigSettings(models.TransientModel):
     # will remove
     module_amr_auth_oauth = fields.Boolean("Auth Oauth")
 
+    # Integration/Connection to other system
+    module_amr_service_client = fields.Boolean("Service Client")
+    module_amr_data_push = fields.Boolean("Data Event Push")
+    module_amr_data_sync = fields.Boolean("Data Sync")
+
     @api.depends('amr_select_audience')
     def _compute_resource_issuer(self):
         for record in self:

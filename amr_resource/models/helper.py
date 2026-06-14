@@ -73,6 +73,13 @@ class ResourceHelper(models.AbstractModel):
         return response.json()
 
     @api.model
+    def is_local_token(self, token):
+        import jwt
+        payload = jwt.decode(token, options={"verify_signature": False})
+        iss = payload.get('iss')
+        return self.is_local_issuer(iss)
+
+    @api.model
     def introspect_token(self, token, client_id=None, client_secret=None, url=None, iss=None, **kw):
         if not url:
             if not iss:
@@ -150,6 +157,10 @@ class ResourceHelper(models.AbstractModel):
         sub = validation.get('sub')
         if sub:
             return self.sudo().env['res.users'].search([('login', '=', sub)], limit=1)
+        if 'machine' == validation.get('type'):
+            return self.sudo().env['res.users'].search(
+                [('active', 'in', [True, False]), '|', ('login', '=', sub), ('email', '=', email), ], limit=1
+            )
         return None
 
     @api.model
@@ -170,7 +181,10 @@ class ResourceHelper(models.AbstractModel):
 
     @classmethod
     def get_param_token(cls):
-        return request.httprequest.args.get("access_token") or request.httprequest.args.get("token")
+        return (request.httprequest.args.get("access_token") or request.httprequest.form.get("access_token")
+                or request.httprequest.args.get("token") or request.httprequest.form.get("token")
+                or request.httprequest.args.get("token_access") or request.httprequest.form.get("token_access"))
+        # return request.params.get("access_token") or request.params.get("token") token_access
 
     @classmethod
     def get_header_token(cls):
