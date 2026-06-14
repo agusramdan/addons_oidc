@@ -2,13 +2,14 @@
 
 import base64
 import logging
-
+import jwt
 from odoo import api, models
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-JWT_BEARER = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+JWT_CLIENT_ASSERTION = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+JWT_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
 
 class TokenHelper(models.AbstractModel):
@@ -84,6 +85,7 @@ class TokenHelper(models.AbstractModel):
     def oidc_token(self, grant_type=None, **kwargs):
         if grant_type == 'client_credentials':
             return self.do_client_credentials(kwargs)
+
         if grant_type == 'refresh_token':
             return self.do_refresh_grant(kwargs.get('refresh_token'))
 
@@ -116,9 +118,6 @@ class TokenHelper(models.AbstractModel):
     @api.model
     def do_client_credentials(self, data):
 
-        client_assertion_type = data.pop('client_assertion_type', None)
-        client_assertion = data.pop('client_assertion', None)
-
         try:
             client_id = data.pop('client_id')
         except KeyError:
@@ -133,13 +132,12 @@ class TokenHelper(models.AbstractModel):
             return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client invalid.'}
 
         client_secret = data.pop('client_secret', None)
-        if client_secret:
-            try:
-                user.with_user(user)._check_credentials(client_secret)
-            except Exception:
-                _logger.exception("Error _check_credentials")
-                return {'status': 401, 'error': "invalid_grant"}
-        else:
+        if not client_secret:
+            return {'status': 401, 'error': "invalid_grant"}
+        try:
+            client.check_credentials(client_secret)
+        except Exception:
+            _logger.exception("Error _check_credentials")
             return {'status': 401, 'error': "invalid_grant"}
 
         access_token, _, expires_in = self.generate_user_token(user, type='machine', **data)

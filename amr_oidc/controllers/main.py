@@ -73,7 +73,7 @@ class ControllerOIDC(ControllerToken):
         client_id = params.get('client_id')
         redirect_uri = params.get('redirect_uri')
         response_type = params.get('response_type')
-        client = request.env['oidc.client'].sudo().search([('client_id', '=', client_id), ], limit=1)
+        client = request.env['oidc.client'].sudo().search([('client_id', '=', client_id)], limit=1)
         if not client:
             return self.invalid_response(400, 'invalid_client')
 
@@ -128,3 +128,8 @@ class ControllerOIDC(ControllerToken):
             return self.invalid_response(400, 'unsupported_response_type')
 
         return werkzeug.utils.redirect(redirect_url)
+
+    @route(['/oidc/profile', '/oidc/userinfo'], type='http', auth='none', methods=['GET'], csrf=False)
+    def api_oidc_profile(self, **kwargs):
+        payload = request.env['amr.token.helper'].oidc_profile(**kwargs)
+        return self.make_response(**payload)

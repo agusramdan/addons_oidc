@@ -5,18 +5,33 @@
         <field name="model">oidc.client</field>
         <field name="arch" type="xml">
             <form string="OIDC Client">
-                <field name="active" invisible="1" />
+                <header>
+                    <field name="active" invisible="1" />
+                </header>
                 <sheet>
                     <group>
-                        <field name="name" />
-                        <field name="client_id" />
-                        <field name="user_id" groups="base.group_erp_manager" />
+                        <group>
+                            <field name="name" />
+                            <field name="client_id" />
+                            <field name="client_email" />
+                        </group>
                     </group>
-                    <group>
-                        <field name="web_base_url" />
-                        <field name="redirect_path" />
-                        <field name="redirect_uri" />
-                    </group>
+                    <notebook>
+                        <page string="User Authorization">
+                            <group>
+                                <field name="web_base_url" />
+                                <field name="redirect_path" />
+                                <field name="redirect_uri" />
+                            </group>
+                            <field name="authorization_ids" />
+                        </page>
+                        <page string="M2M Authentication" name="page_m2m_authentication">
+                            <group>
+                                <field name="client_secret" password="1" />
+                                <field name="user_id" />
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
             </form>
         </field>
@@ -42,6 +57,4 @@
         <field name="view_mode">tree,form</field>
     </record>
 
-    <menuitem id="menu_oidc_client" parent="base.menu_users" sequence="30"
-        action="action_oidc_client" groups="base.group_no_one" />
 </odoo>

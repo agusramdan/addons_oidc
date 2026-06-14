@@ -7,7 +7,7 @@
     'author': "Agus Muhammad Ramdan",
     'website': "http://www.agusramdan.tech",
     'category': 'API',
-    'version': '13.0.0.0.2',
+    'version': '13.0.0.0.3',
     'depends': ['base', 'web', 'amr_token'],
     'external_dependencies': {
         'python': ['pyjwt'],
@@ -17,5 +17,6 @@
         'views/oidc_client_views.xml',
         'views/oidc_authorization_code_views.xml',
         'views/login_template.xml',
+        'views/menuitem.xml',
     ],
 }

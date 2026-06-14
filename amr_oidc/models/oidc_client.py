@@ -28,6 +28,7 @@ class OidcClient(models.Model):
         "Client ID",
         help="Use web.base.url + redirect_path as redirect_uri if redirect_uri is not set."
     )
+    client_email = fields.Char()
     client_secret = fields.Char()
     web_base_url = fields.Char()
     redirect_uri = fields.Text()
@@ -35,6 +36,13 @@ class OidcClient(models.Model):
         selection=REDIRECT_MODE.items(),
         default='auth_oauth_oidc'
     )
+    authorization_ids = fields.One2many('oidc.authorization.code', 'client_id')
+
+    def check_credentials(self,client_secret):
+        # todo next using hash method to check secret like user credentials
+        if client_secret != self.client_secret:
+            raise ValueError("Invalid secret")
+        return True
 
     def validate_redirect_uri(self, redirect_uri):
         if self.redirect_path:
@@ -125,36 +133,13 @@ class OidcClient(models.Model):
             )
             client = self.sudo().search([('client_id', '=', payload.get('aud'))], limit=1)
         audience = client.client_id
-        return self.env['amr.token'].validate(token, audience=audience)
+        return self.env['amr.token.helper'].validate(token, audience=audience)
 
     def validate_refresh_token(self, token):
-        # client = self
-        # if not client:
-        #     payload = jwt.decode(
-        #         token,
-        #         options={
-        #             "verify_signature": False,
-        #             "verify_exp": True,
-        #             "verify_aud": False,
-        #             "verify_iss": False,
-        #         }
-        #     )
-        #     client = self.sudo().search([('client_id', '=', payload.get('aud'))], limit=1)
-        # audience = client and client.client_id
         return self.env['oidc.refresh.token'].validate_token(token, self.client_id)
 
-    # def validate(self, token, refresh_token=False):
-    #     client = self
-    #     if not client:
-    #         payload = jwt.decode(
-    #             token,
-    #             options={
-    #                 "verify_signature": False,
-    #                 "verify_exp": True,
-    #                 "verify_aud": False,
-    #                 "verify_iss": False,
-    #             }
-    #         )
-    #         client = self.sudo().search([('client_id', '=', payload.get('aud'))], limit=1)
-    #     audience = client and client.client_id
-    #     return self.env['amr.token'].validate(token, refresh_token=refresh_token, audience=audience)
+    def export_service_account(self):
+        return {
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+        }
