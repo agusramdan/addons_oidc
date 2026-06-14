@@ -50,15 +50,15 @@
                     </group>
 
                     <notebook>
-
                         <page string="Endpoint">
-
                             <group>
-                                <field name="base_url" placeholder="https://employee.company.com"/>
-                                <field name="base_path" placeholder="/api/v1" />
+                                <field name="base_url" string="Base Url" attrs="{'invisible':[('config_param_name','in',['',False])]}"/>
+                                <field name="base_url_value" string="Base Url" attrs="{'invisible':[('config_param_name','not in',['',False])]}" placeholder="https://employee.company.com"/>
+                                <field name="config_param_name"/>
+                                <button string="Edit" type="object" name="open_config_parameter" attrs="{'invisible':[('config_param_name','in',['',False])]}"/>
                             </group>
-
                             <group>
+                                <field name="base_path" placeholder="/api/v1" />
                                 <field name="audience" placeholder="employee-service" />
                             </group>
 

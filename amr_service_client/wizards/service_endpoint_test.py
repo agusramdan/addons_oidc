@@ -11,7 +11,8 @@ class ServiceEndpointTestWizard(models.TransientModel):
     _name = "service.endpoint.test.wizard"
     _description = "Service Endpoint Test"
 
-    endpoint_id = fields.Many2one("service.endpoint", required=True, )
+    endpoint_id = fields.Integer()
+    endpoint_model = fields.Char()
     method = fields.Selection(
         [("GET", "GET"), ("POST", "POST"), ("PUT", "PUT"), ("PATCH", "PATCH"), ("DELETE", "DELETE"), ],
         required=True, default="GET",
@@ -30,7 +31,8 @@ class ServiceEndpointTestWizard(models.TransientModel):
         params = json.loads(self.params) if self.params else None
         headers = json.loads(self.headers) if self.headers else None
         payload = json.loads(self.payload) if self.payload else None
-        client = self.env["service.client"].get_service_client(self.endpoint_id, credential=None)
+        endpoint = self.env[self.endpoint_model].browse(self.endpoint_id)
+        client = self.env["service.client"].get_service_client(endpoint, credential=None)
         self.response_status = 0
         try:
             response = client.call(

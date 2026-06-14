@@ -27,6 +27,7 @@ class ServiceCredential(models.Model):
     )
     reference = fields.Char()
     credential_json = fields.Text()
+    scopes = fields.Char(help="Comma-separated scopes")
 
     def action_config_credential(self):
         self.ensure_one()
@@ -41,3 +42,24 @@ class ServiceCredential(models.Model):
                 "default_endpoint_id": self.id,
             }
         }
+
+    def action_test_credential(self):
+        self.ensure_one()
+        try:
+            loader = self.env["service.credential.loader"]
+            credential_data = loader.load_credential(self)
+            provider = self.env["service.auth.factory"].create_service_auth(credential_data)
+            token = provider._request_token()
+            _logger.info(f"Credential {self.name} is valid: {credential_data} , token: {token}...")
+            return {
+                "type": "ir.actions.client",
+                "tag": "display_notification",
+                "params": {
+                    "title": "Success",
+                    "message": f"Credential {self.name} is valid",
+                    "type": "success",
+                }
+            }
+        except Exception as e:
+            _logger.error(f"Credential {self.name} is invalid: {e}")
+            raise UserError(f"Credential is invalid: {e}")

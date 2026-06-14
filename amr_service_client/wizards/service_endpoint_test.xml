@@ -8,7 +8,8 @@
         <field name="arch" type="xml">
             <form string="Test Endpoint">
                 <group>
-                    <field name="endpoint_id"/>
+                    <field name="endpoint_id" readonly="1"/>
+                    <field name="endpoint_model" readonly="1"/>
                     <field name="method"/>
                     <field name="path"/>
                 </group>

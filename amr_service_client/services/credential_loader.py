@@ -12,8 +12,16 @@ from odoo import tools
 class ServiceCredentialLoaderDatabase(models.AbstractModel):
     _name = "service.credential.loader.database"
 
+    @api.model
     def load_credential(self, credential):
-        return json.loads(credential.credential_json)
+        result = json.loads(credential.credential_json)
+        scope = result.get("scope") or result.get("scopes") or []
+        if isinstance(scope, str):
+            scope = scope.split()
+        if credential.scopes:
+            scope.extend(credential.scopes.split())
+        result["scope"] = list(set(scope))
+        return result
 
 
 class ServiceCredentialLoaderFilePath(models.AbstractModel):

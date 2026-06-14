@@ -211,24 +211,29 @@ class ServiceClientFactory(models.AbstractModel):
         return RemoteObjectProxy(client, model_name)
 
     def call(self, service, method, path, params=None, payload=None, headers=None, credential=None, audience=None):
-        endpoint = self._get_endpoint(service)
-        url = endpoint.get_url(path)
-        loader = self.env["service.credential.loader"]
-        credential = loader.get_credential(credential)
-        credential_data = loader.load_credential(credential or endpoint.credential_id)
-        provider = self.env["service.auth.factory"].create_service_auth(credential_data)
-        request_headers = {}
-        # request_headers.update(auth_headers)
-        request_headers.update(headers or {})
-        request_headers.setdefault("Content-Type", "application/json")
-        request_headers.setdefault("Accept", "application/json")
-        request_context = {
-            "method": method,
-            "url": url,
-            "headers": request_headers,
-            "params": params,
-            "json": payload,
-            "timeout": endpoint.timeout,
-        }
-        request_context = provider.authenticate(request_context, audience=audience or endpoint.audience, )
-        return requests.request(**request_context)
+        client = self.get_service_client(service, credential=credential)
+        return client.call(method=method, path=path, params=params, payload=payload, headers=headers, audience=audience)
+
+    def get(self, service, path, params=None, headers=None, credential=None, audience=None):
+        return self.call(
+            service=service, method="GET", path=path, params=params, headers=headers,
+            credential=credential, audience=audience
+        )
+
+    def post(self, service, path, payload=None, headers=None, credential=None, audience=None):
+        return self.call(
+            service=service, method="POST", path=path, payload=payload, headers=headers,
+            credential=credential, audience=audience
+        )
+
+    def put(self, service, path, payload=None, headers=None, credential=None, audience=None):
+        return self.call(
+            service=service, method="PUT", path=path, payload=payload, headers=headers,
+            credential=credential, audience=audience
+        )
+
+    def delete(self, service, path, headers=None, credential=None, audience=None):
+        return self.call(
+            service=service, method="DELETE", path=path, headers=headers,
+            credential=credential, audience=audience
+        )

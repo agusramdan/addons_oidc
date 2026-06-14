@@ -5,7 +5,6 @@ import logging
 import requests
 import time
 import uuid
-import jwt
 
 from requests.exceptions import (
     ConnectionError,
@@ -287,7 +286,7 @@ class ServiceAccountProvider(ClientSecretProvider):
         }
 
     def _create_jwt_assertion(self, audience=None, ):
-
+        import jwt
         now = int(time.time())
         client_id = self.credential.get("client_id")
         if not client_id:
@@ -317,7 +316,7 @@ class ServiceAccountProvider(ClientSecretProvider):
                 payload["scope"] = scope
 
         headers = {}
-        private_key_id = self.credential.get("private_key_id")
+        private_key_id = self.credential.get("private_key_id") or self.credential.get("kid")
         if private_key_id:
             headers["kid"] = private_key_id
         private_key = self._load_private_key()
