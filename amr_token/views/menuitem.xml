@@ -1,8 +1,11 @@
 <odoo>
 
     <!-- technical -->
-    <menuitem id="menu_public_key" name="JWKS Keys" sequence="40"
+    <menuitem id="menu_token_parent" string="JWT/Token" sequence="40"
               action="action_amr_public_key" parent="base.menu_users" groups="base.group_no_one"
+    />
+    <menuitem id="menu_public_key" parent="menu_token_parent" sequence="40"
+              action="action_amr_public_key"  groups="base.group_no_one"
     />
 
 </odoo>

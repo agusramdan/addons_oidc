@@ -4,11 +4,32 @@ import json
 import logging
 
 from odoo.http import Controller, Response, request, route
+import json
+import logging
+
+from werkzeug.exceptions import HTTPException
+from werkzeug.wrappers import Response
+from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
 
 class ControllerToken(Controller):
+    @classmethod
+    def handle_exception(cls, ex):
+
+        if isinstance(ex, HTTPException):
+            raise ex
+
+
+        return cls.json_response(
+            {
+                "success": False,
+                "error": "general_error",
+                "error_description": str(ex),
+            },
+            status=500,
+        )
 
     def valid_response(self, status, data):
         return Response(
