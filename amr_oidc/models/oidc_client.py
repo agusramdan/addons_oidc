@@ -37,6 +37,7 @@ class OidcClient(models.Model):
         default='auth_oauth_oidc'
     )
     authorization_ids = fields.One2many('oidc.authorization.code', 'client_id')
+    key_ids = fields.One2many('oidc.client.key', 'client_id')
 
     def check_credentials(self,client_secret):
         # todo next using hash method to check secret like user credentials
@@ -142,4 +143,17 @@ class OidcClient(models.Model):
         return {
             'client_id': self.client_id,
             'client_secret': self.client_secret,
+        }
+
+    def action_export_service_account(self):
+        self.ensure_one()
+        context = {
+            'default_client_id': self.id
+        }
+        return {
+            'type': 'ir.actions.act_window',
+            'res_model': 'oidc.service.account.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': context,
         }

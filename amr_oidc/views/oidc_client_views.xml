@@ -6,6 +6,10 @@
         <field name="arch" type="xml">
             <form string="OIDC Client">
                 <header>
+                    <button
+                        name="action_export_service_account" type="object"
+                        string="Create Service Account" class="oe_highlight"
+                    />
                     <field name="active" invisible="1" />
                 </header>
                 <sheet>
@@ -30,6 +34,15 @@
                                 <field name="client_secret" password="1" />
                                 <field name="user_id" />
                             </group>
+                        </page>
+                        <page string="Pubic KEY">
+                            <field name="key_ids">
+                                <tree string="Public keys">
+                                    <field name="active" />
+                                    <field name="kid" />
+                                    <field name="expired_at" />
+                                </tree>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
