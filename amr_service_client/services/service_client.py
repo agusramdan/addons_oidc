@@ -103,13 +103,22 @@ class ServiceClient:
 
 class RemoteObjectProxy:
 
-    def __init__(self, client, model_name):
+    def __init__(self, client, model_name, **kwargs):
         self.client = client
         self.model_name = model_name
+        self.context = kwargs.get('context', {})
+        self.domain = kwargs.get('domain', [])
+        self.fields = kwargs.get('fields')
+        self.offset = kwargs.get('offset', 0)
+        self.limit = kwargs.get('limit', 500)
+        self.order = kwargs.get('order', None)
 
     def __enter__(self):
         # self.client.connect()
         return self
+
+    def __exit__(self, *args):
+        pass
 
     def __getattr__(self, method_name):
         def method(*args, **kwargs):
@@ -125,10 +134,17 @@ class RemoteObjectProxy:
         kw['context'] = context
         path = '/api/dataset/call_kw'
         headers = {"Content-Type": "application/json"}
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {'model': self.model_name, "method": method, "args": args or [], "kwargs": kw},
+            "id": 1
+        }
+        _logger.info("payload %s .", payload)
         resp = self.client.post(
             path=path,
             headers=headers,
-            payload={'model': self.model_name, "method": method, "args": args, "kwargs": kwargs}
+            payload=payload
         )
         resp.raise_for_status()
         data = resp.json()
@@ -204,11 +220,11 @@ class ServiceClientFactory(models.AbstractModel):
         credential = credential or endpoint.credential_id
         return ServiceClient(self.env, endpoint, credential)
 
-    def get_remote_object(self, service_code, model_name, credential=None):
+    def get_remote_object(self, service_code, model_name, credential=None, **kwargs):
         endpoint = self._get_endpoint(service_code)
         credential = credential or endpoint.credential_id
         client = ServiceClient(self.env, endpoint, credential)
-        return RemoteObjectProxy(client, model_name)
+        return RemoteObjectProxy(client, model_name, **kwargs)
 
     def call(self, service, method, path, params=None, payload=None, headers=None, credential=None, audience=None):
         client = self.get_service_client(service, credential=credential)

@@ -12,7 +12,6 @@ _logger = logging.getLogger(__name__)
 class ServiceEndpointMixin(models.AbstractModel):
     _name = "service.endpoint.mixin"
 
-    # code = fields.Char()
     base_url = fields.Char(compute='_compute_base_url')
     base_url_value = fields.Char()
     config_param_name = fields.Char()
