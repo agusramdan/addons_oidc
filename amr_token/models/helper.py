@@ -3,13 +3,62 @@
 import base64
 import logging
 import time
-
+import uuid
 import jwt
 
 from odoo import _, api, models
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
+
+
+def get_algorith_config():
+    from cryptography.hazmat.primitives.asymmetric import (rsa, ec, )
+    return {
+        # RSA PKCS1
+        "RS256": lambda: rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        ),
+        "RS384": lambda: rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=3072,
+        ),
+        "RS512": lambda: rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=4096,
+        ),
+
+        # RSA PSS
+        "PS256": lambda: rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+        ),
+        "PS384": lambda: rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=3072,
+        ),
+        "PS512": lambda: rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=4096,
+        ),
+
+        # ECDSA
+        "ES256": lambda: ec.generate_private_key(
+            ec.SECP256R1()
+        ),
+        "ES384": lambda: ec.generate_private_key(
+            ec.SECP384R1()
+        ),
+        "ES512": lambda: ec.generate_private_key(
+            ec.SECP521R1()
+        ),
+
+        # Bitcoin / Blockchain
+        "ES256K": lambda: ec.generate_private_key(
+            ec.SECP256K1()
+        ),
+    }
 
 
 class ResourceAccessToken(models.AbstractModel):
@@ -19,12 +68,70 @@ class ResourceAccessToken(models.AbstractModel):
         return self.env['amr.token.helper'].encode(**kw)
 
     def decode(self, token, **kw):
-        return self.env['amr.token.helper'].validate(token, **kw)
+        if self.is_local_token(token):
+            return self.env['amr.token.helper'].validate(token, **kw)
+        return super().decode(token, **kw)
 
 
 class TokenHelper(models.AbstractModel):
     _name = 'amr.token.helper'
     _description = 'Token Helper call from Controller'
+    ALGORITHM_CONFIG = get_algorith_config()
+
+    @classmethod
+    def generate_key(cls, algorithm):
+        """
+        Generate private/public key pair.
+
+        Returns:
+            {
+                "private_key": "...",
+                "public_key": "...",
+                "algorithm": algorithm,
+                "kid": kid,
+            }
+        """
+
+        generator = cls.ALGORITHM_CONFIG.get(algorithm)
+
+        if not generator:
+            raise ValueError(
+                f"Unsupported algorithm: {algorithm}"
+            )
+
+        private_key = generator()
+        public_key = private_key.public_key()
+        kid = str(uuid.uuid4())
+
+        return {
+            "private_key": cls.private_key_to_pem(private_key),
+            "public_key": cls.public_key_to_pem(public_key),
+            "algorithm": algorithm,
+            "kid": kid,
+        }
+
+    @staticmethod
+    def private_key_to_pem(private_key):
+        from cryptography.hazmat.primitives import serialization
+        return private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode()
+
+    @staticmethod
+    def public_key_to_pem(public_key):
+        from cryptography.hazmat.primitives import serialization
+        return public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ).decode()
+
+    def create_public_key(self, algorithm):
+
+        data = self.generate_key(algorithm)
+        data['name'] = data['kid']
+        self.env["amr.public.key"].create(data)
 
     # helper will call from Controller
     @api.model
@@ -370,6 +477,7 @@ class TokenHelper(models.AbstractModel):
     def validate_secret(self, token, algorithm="HS256", audience=None):
         jwt_secret = self.get_secret()
         if audience:
+            _logger.info("with audience %s.", audience)
             options = {"verify_aud": True}
         else:
             audience = None
@@ -385,8 +493,10 @@ class TokenHelper(models.AbstractModel):
         if not jwt_key:
             raise Exception("Public Key not set")
         if audience:
+            _logger.info("with audience %s.", audience)
             options = {"verify_aud": True}
         else:
+            audience = None
             options = {"verify_aud": False}
         issuer = self.get_issuer()
         return jwt_key.validate_token(token, issuer=issuer, audience=audience, options=options)

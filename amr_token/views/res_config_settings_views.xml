@@ -30,6 +30,10 @@
                                     <label for="amr_token_expires_in" string="Expires" class="col-lg-3 o_light_label"/>
                                     <field name="amr_token_expires_in" placeholder="e.g. 1000"/>
                                 </div>
+                                <div id='create_public_key' class="row mt16"  attrs="{'invisible': [('amr_token_signature_type', '!=', 'public_key')]}">
+                                    <span class="col-lg-3 o_light_label" />
+                                    <button name="action_create_public_key" icon="fa-arrow-right" type="object" string="Create Key" class="btn-link"/>
+                                </div>
                             </div>
                         </div>
                     </div>

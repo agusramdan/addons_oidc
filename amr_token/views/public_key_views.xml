@@ -39,9 +39,10 @@
                     <group>
 
                         <group string="Identity">
-                            <field name="kid"/>
-                            <field name="hsm_key_id"/>
+                            <field name="kid" attrs="{'required': [('public_key', 'not in', [False,''])]}"/>
+                            <field name="source" />
                             <field name="algorithm"/>
+                            <field name="hsm_key_id" attrs="{'invisible': [('source', '!=', 'hsm')]}"/>
                         </group>
 
                         <group string="Status">

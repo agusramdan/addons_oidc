@@ -71,3 +71,6 @@ class ResConfigSettings(models.TransientModel):
 
     # will remove
     module_amr_token_oauth = fields.Boolean("Token OAuth")
+
+    def action_create_public_key(self):
+        self.env['amr.token.helper'].sudo().create_public_key(self.amr_token_public_key_algorithm)

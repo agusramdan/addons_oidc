@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
 import logging
-
+import os
 import jwt
 from jwt import InvalidTokenError
-from jwt.algorithms import RSAAlgorithm , ECAlgorithm
+from jwt.algorithms import RSAAlgorithm, ECAlgorithm
 from cryptography.hazmat.primitives import serialization
 from cryptography.exceptions import UnsupportedAlgorithm
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.tools import config
 
 _logger = logging.getLogger(__name__)
 
@@ -20,6 +21,19 @@ class PublicKey(models.Model):
 
     name = fields.Char()
     kid = fields.Char(required=True, index=True)
+    source = fields.Selection(
+        [
+            ("database", "Database"),
+            ("hsm", "HSM"),
+            ("file_path", "File Path"),
+            ("env_pem", "Environment Pem"),
+            ("env_path", "Environment Path"),
+            ("config_path", "Config Path"),
+            ("system_parameter_pem", "System Parameter pem"),
+            ("system_parameter_path", "System Parameter Path"),
+        ],
+        required=True, default="database",
+    )
     hsm_key_id = fields.Char()
     algorithm = fields.Selection(
         [
@@ -39,6 +53,7 @@ class PublicKey(models.Model):
     )
     public_key = fields.Text(required=True)
     # optional (hanya untuk dev / internal)
+    reference = fields.Char()
     private_key = fields.Text()
     active = fields.Boolean(default=True)
     is_signing = fields.Boolean(default=False)
@@ -57,12 +72,47 @@ class PublicKey(models.Model):
             except (ValueError, UnsupportedAlgorithm):
                 raise ValidationError("Invalid public key")
 
+    def load_pem_public_key(self):
+        from cryptography.hazmat.primitives import serialization
+        public_key = serialization.load_pem_public_key(self.public_key.encode('utf-8'))
+        return public_key
+
+    def get_private_key(self):
+        record = self
+        source = record.source
+        if source == "database":
+            return record.private_key
+        elif source == "env_pem":
+            return os.getenv(record.reference)
+        elif source == "system_parameter_pem":
+            return self.env["ir.config_parameter"].sudo().get_param(
+                record.reference
+            )
+
+        if source == "file_path":
+            return self._read_file(record.reference)
+        elif source == "env_path":
+            path = os.getenv(record.reference)
+        elif source == "config_path":
+            path = config.get(record.reference)
+        elif source == "system_parameter_path":
+            path = self.env["ir.config_parameter"].sudo().get_param(record.reference)
+        else:
+            raise ValueError(f"Unsupported source: {source}")
+
+        return self._read_file(path)
+
+    def _read_file(self, path):
+        if not path:
+            raise ValueError("Private key path not configured")
+
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
     @api.model
     def get_jwks(self):
         list_key = []
-        from cryptography.hazmat.primitives import serialization
         for key in self.search([('active', '=', True)]):
-            public_key = serialization.load_pem_public_key(key.public_key.encode('utf-8'))
+            public_key = key.load_pem_public_key()
             if key.algorithm in ['ES256', 'ES256K', 'ES384', 'ES512']:
                 jwk_dict = ECAlgorithm.to_jwk(public_key, as_dict=True)
             else:
@@ -87,3 +137,8 @@ class PublicKey(models.Model):
 
     # def action_set_signing_key(self):
     #     self.env['ir.config_parameter'].sudo().set_param('amr_token.signing_key_id', self.kid)
+
+    def action_generate_key(self):
+        data = self.env['amr.token.helper'].generate_key(self.algorithm)
+        data.pop('source', None)
+        self.write(data)

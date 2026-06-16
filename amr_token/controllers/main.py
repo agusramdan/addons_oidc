@@ -4,8 +4,6 @@ import json
 import logging
 
 from odoo.http import Controller, Response, request, route
-import json
-import logging
 
 from werkzeug.exceptions import HTTPException
 from werkzeug.wrappers import Response
@@ -20,7 +18,6 @@ class ControllerToken(Controller):
 
         if isinstance(ex, HTTPException):
             raise ex
-
 
         return cls.json_response(
             {
@@ -63,7 +60,12 @@ class ControllerToken(Controller):
 
     @route('/oidc/token', type='http', auth='none', methods=['POST'], csrf=False)
     def api_oidc_token(self, **kwargs):
-        payload = request.env['amr.token.helper'].oidc_token(**kwargs)
+        try:
+            payload = request.env['amr.token.helper'].oidc_token(**kwargs)
+        except Exception:
+            _logger.exception("Error oidc_token")
+            return self.invalid_response(401, "invalid_request")
+
         return self.make_response(**payload)
 
     @route('/oidc/introspect', type='http', auth='none', methods=['GET', 'POST'], csrf=False)
@@ -71,7 +73,12 @@ class ControllerToken(Controller):
         return self.oidc_introspect(**kwargs)
 
     def oidc_introspect(self, **kwargs):
-        data = request.env['amr.token.helper'].oidc_introspect(**kwargs)
+        try:
+            data = request.env['amr.token.helper'].oidc_introspect(**kwargs)
+        except Exception:
+            _logger.exception("Error oidc_introspect")
+            return self.invalid_response(401, "invalid_token")
+
         active = data.get('active')
         if active:
             return self.make_response(**data)
@@ -80,5 +87,9 @@ class ControllerToken(Controller):
 
     @route(['/oidc/profile', '/oidc/userinfo'], type='http', auth='none', methods=['GET'], csrf=False)
     def api_oidc_profile(self, **kwargs):
-        payload = request.env['amr.token.helper'].oidc_profile(**kwargs)
+        try:
+            payload = request.env['amr.token.helper'].oidc_profile(**kwargs)
+        except Exception:
+            _logger.exception("Error oidc_introspect")
+            return self.invalid_response(401, "invalid_token")
         return self.make_response(**payload)
