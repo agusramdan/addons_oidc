@@ -9,6 +9,7 @@
                     <button
                         name="action_export_service_account" type="object"
                         string="Create Service Account" class="oe_highlight"
+                        attrs="{'invisible':[('authentication_method','!=','private_key_jwt')]}"
                     />
                     <field name="active" invisible="1" />
                 </header>
@@ -16,8 +17,12 @@
                     <group>
                         <group>
                             <field name="name" />
+                            <field name="client_type" />
+                        </group>
+                        <group>
                             <field name="client_id" />
                             <field name="client_email" />
+                            <field name="user_id" />
                         </group>
                     </group>
                     <notebook>
@@ -29,17 +34,17 @@
                             </group>
                             <field name="authorization_ids" />
                         </page>
-                        <page string="M2M Authentication" name="page_m2m_authentication">
+                        <page string="Authentication" name="page_m2m_authentication">
                             <group>
-                                <field name="client_secret" password="1" />
+                                <field name="authentication_method" />
+                                <field name="client_secret" password="1" attrs="{'invisible':[('authentication_method','!=','client_secret')]}"/>
                                 <field name="user_id" />
                             </group>
-                        </page>
-                        <page string="Pubic KEY">
                             <field name="key_ids">
-                                <tree string="Public keys">
+                                <tree string="Public keys" attrs="{'invisible':[('authentication_method','!=','private_key_jwt')]}">
                                     <field name="active" />
                                     <field name="kid" />
+                                    <field name="algorithm"/>
                                     <field name="expired_at" />
                                 </tree>
                             </field>

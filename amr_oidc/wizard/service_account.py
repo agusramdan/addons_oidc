@@ -26,37 +26,38 @@ class OidcServiceAccountWizard(models.TransientModel):
         ],
         default="RS256",
     )
+    client_email = fields.Char(readonly=True,related='client_id.client_email')
     file_name = fields.Char(readonly=True)
     file_data = fields.Binary(readonly=True)
     json_content = fields.Text(readonly=True)
 
-    def export_service_account(self):
-        self.ensure_one()
-        key_pair = self.env['amr.token.helper'].generate_key(self.algorithm)
-        result = self.env['amr.token.helper'].openid_configuration()
-        # "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-        # "token_uri": "https://oauth2.googleapis.com/token",
-        # "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-        # "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/xxxx%40xxxx.iam.gserviceaccount.com",
-        # "universe_domain": "googleapis.com"
-
-        return {
-            "type": "service_account",
-            "client_id": self.client_id,
-            "client_email": self.client_email,
-            "auth_uri": result['authorization_endpoint'],
-            "token_uri": result['token_endpoint'],
-            "issuer": result['issuer'],
-            "private_key_id": key_pair['kid'],
-            "private_key": key_pair['private_key'],
-            "scope": "",
-            "auth_method": "private_key_jwt",
-            "algorithm": key_pair['algorithm'],
-        }
+    # def export_service_account(self):
+    #     self.ensure_one()
+    #     key_pair = self.env['amr.token.helper'].generate_key(self.algorithm)
+    #     result = self.env['amr.token.helper'].openid_configuration()
+    #     # "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    #     # "token_uri": "https://oauth2.googleapis.com/token",
+    #     # "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    #     # "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/xxxx%40xxxx.iam.gserviceaccount.com",
+    #     # "universe_domain": "googleapis.com"
+    #
+    #     return {
+    #         "type": "service_account",
+    #         "client_id": self.client_id,
+    #         "client_email": self.client_id.client_email,
+    #         "auth_uri": result['authorization_endpoint'],
+    #         "token_uri": result['token_endpoint'],
+    #         "issuer": result['issuer'],
+    #         "private_key_id": key_pair['kid'],
+    #         "private_key": key_pair['private_key'],
+    #         "scope": "",
+    #         "auth_method": "private_key_jwt",
+    #         "algorithm": key_pair['algorithm'],
+    #     }
 
     def action_generate(self):
         self.ensure_one()
-        data = self.export_service_account()
+        data = self.client_id.export_service_account(self.algorithm)
         json_text = json.dumps(
             data,
             indent=2,
@@ -64,7 +65,7 @@ class OidcServiceAccountWizard(models.TransientModel):
         )
 
         filename = (
-            f'service_account_{self.client_id.client_id}.json'
+            f'service_account_{self.client_id.client_id}_{self.algorithm}.json'
         )
 
         self.write({
@@ -87,12 +88,13 @@ class OidcServiceAccountWizard(models.TransientModel):
     def action_save(self):
         key_pair = json.loads(self.json_content)
         if self.env['oidc.client.key'].sudo().search(
-                [('client_id', '=', self.id), ('kid', '=', key_pair['private_key_id'])]):
+                [('client_id', '=', self.client_id.id), ('kid', '=', key_pair['private_key_id'])]):
             raise UserWarning("Already save")
 
         self.env['oidc.client.key'].sudo().create({
-            'client_id': self.id,
+            'client_id': self.client_id.id,
             'kid': key_pair['private_key_id'],
+            'algorithm': key_pair['algorithm'],
             'public_key': key_pair['public_key'],
             # 'private_key': key_pair['private_key'],
             'active': True,

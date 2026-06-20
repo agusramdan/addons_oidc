@@ -22,14 +22,26 @@ class OidcClient(models.Model):
     _description = 'OIDC Client'
 
     active = fields.Boolean(default=True)
-    name = fields.Char()
+    name = fields.Char(help="Authorized Party (client yang meminta token, umum di OpenID Connect)")
     user_id = fields.Many2one('res.users', help="machine user or bot", default=1)
     client_id = fields.Char(
         "Client ID",
         help="Use web.base.url + redirect_path as redirect_uri if redirect_uri is not set."
     )
     client_email = fields.Char()
+    client_type = fields.Selection([
+        ("machine", "Machine"),
+        ("mobile", "Mobile"),
+        ("web", "Web"),
+        ("atm", "ATM"),
+        ("cdm", "CDM"),
+    ], default="machine")
     client_secret = fields.Char()
+    authentication_method = fields.Selection([
+        ("client_secret", "Client Secret"),
+        ("private_key_jwt", "Private Key JWT"),
+        ("tls_client_auth", "TLS Client Auth"),
+    ], default="client_secret")
     web_base_url = fields.Char()
     redirect_uri = fields.Text()
     redirect_path = fields.Selection(
@@ -139,10 +151,29 @@ class OidcClient(models.Model):
     def validate_refresh_token(self, token):
         return self.env['oidc.refresh.token'].validate_token(token, self.client_id)
 
-    def export_service_account(self):
+    def export_service_account(self, algorithm):
+        self.ensure_one()
+        key_pair = self.env['amr.token.helper'].generate_key(algorithm)
+        result = self.env['amr.token.helper'].openid_configuration()
+        # "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        # "token_uri": "https://oauth2.googleapis.com/token",
+        # "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+        # "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/xxxx%40xxxx.iam.gserviceaccount.com",
+        # "universe_domain": "googleapis.com"
+
         return {
-            'client_id': self.client_id,
-            'client_secret': self.client_secret,
+            "type": "service_account",
+            "client_id": self.client_id,
+            "client_email": self.client_email,
+            "auth_uri": result['authorization_endpoint'],
+            "token_uri": result['token_endpoint'],
+            "issuer": result['issuer'],
+            "private_key_id": key_pair['kid'],
+            "private_key": key_pair['private_key'],
+            "public_key": key_pair['public_key'],
+            "scope": "",
+            "auth_method": "private_key_jwt",
+            "algorithm": key_pair['algorithm'],
         }
 
     def action_export_service_account(self):

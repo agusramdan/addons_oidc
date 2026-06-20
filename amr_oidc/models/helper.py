@@ -3,8 +3,11 @@
 import base64
 import logging
 import jwt
-from odoo import api, models
+from odoo import api, fields, models
 from odoo.http import request
+from psycopg2 import IntegrityError
+import jwt
+from datetime import datetime, timezone
 
 _logger = logging.getLogger(__name__)
 
@@ -83,14 +86,17 @@ class TokenHelper(models.AbstractModel):
 
     @api.model
     def oidc_token(self, grant_type=None, **kwargs):
+        if grant_type == JWT_GRANT_TYPE:
+            return self.do_client_assertion(kwargs.pop('assertion'), kwargs)
+
         if grant_type == 'client_credentials':
+            if kwargs.get('client_assertion_type') == JWT_CLIENT_ASSERTION:
+                return self.do_client_assertion(kwargs.pop('client_assertion'), kwargs)
+
             return self.do_client_credentials(kwargs)
 
         if grant_type == 'refresh_token':
             return self.do_refresh_grant(kwargs.get('refresh_token'))
-
-        if grant_type == 'trusted_token':
-            return self.do_trusted_grant(kwargs.get('access_token'))
 
         return super().oidc_token(grant_type=grant_type, **kwargs)
 
@@ -113,17 +119,30 @@ class TokenHelper(models.AbstractModel):
             except Exception:
                 _logger.exception("Error _check_credentials")
                 return {'status': 401, 'error': "invalid_grant"}
+
+        data['client_id'] = client_id
+        data['azp'] = client.name or client_id
+        data['sub_type'] = "user"
+
         return super().do_password_grant(data)
 
     @api.model
     def do_client_credentials(self, data):
 
-        try:
-            client_id = data.pop('client_id')
-        except KeyError:
+        # try basic auth
+        client_id, client_secret = self.get_basic_auth()
+        if not client_id:
+            client_id = data.pop('client_id', None)
+            client_secret = data.pop('client_secret', None)
+
+        if not client_id:
             return {'status': 401, 'error': "invalid_grant", 'error_description': 'Missing client_id'}
 
+        if not client_secret:
+            return {'status': 401, 'error': "invalid_grant",'error_description': 'Missing client_secret'}
+
         client = self.env['oidc.client'].sudo().search([('client_id', '=', client_id)])
+
         if not client:
             return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client not found.'}
 
@@ -131,7 +150,6 @@ class TokenHelper(models.AbstractModel):
         if not user:
             return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client invalid.'}
 
-        client_secret = data.pop('client_secret', None)
         if not client_secret:
             return {'status': 401, 'error': "invalid_grant"}
         try:
@@ -139,8 +157,117 @@ class TokenHelper(models.AbstractModel):
         except Exception:
             _logger.exception("Error _check_credentials")
             return {'status': 401, 'error': "invalid_grant"}
+        data['client_id'] = client_id
+        data['azp'] = client.name or client_id
+        data['sub_type'] = "client"
 
         access_token, _, expires_in = self.generate_user_token(user, type='machine', **data)
+        return {
+            'access_token': access_token,
+            'token_type': 'Bearer',
+            'expires_in': expires_in,
+        }
+
+    def do_client_assertion(self, assertion, data):
+        token_endpoint = self.get_token_endpoint()
+        if not assertion:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'No assertion.'}
+        try:
+            header = jwt.get_unverified_header(assertion)
+        except jwt.InvalidTokenError as e:
+            raise ValueError(f'Invalid JWT header: {e}')
+
+        kid = header.get('kid')
+        alg = header.get('alg')
+
+        if not kid:
+            raise ValueError('Missing kid in JWT header')
+
+        if not alg:
+            raise ValueError('Missing alg in JWT header')
+
+        payload = jwt.decode(
+            assertion,
+            options={
+                "verify_signature": False,
+            }
+        )
+        client_id = payload.get('iss')
+        if not client_id:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Missing client_id'}
+
+        client = self.env['oidc.client'].sudo().search([('client_id', '=', client_id)])
+        if not client:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client not found.'}
+
+        key = self.env['oidc.client.key'].search([
+            ('client_id', '=', client.id),
+            ('kid', '=', kid),
+            ('active', '=', True),
+        ], limit=1)
+        if not key:
+            raise ValueError(f'Unknown kid: {kid}')
+
+        if key.algorithm != alg:
+            raise ValueError(f'Algorithm mismatch. Expected {key.algorithm}, got {alg}')
+
+        try:
+            payload = jwt.decode(
+                assertion,
+                key.public_key,
+                algorithms=[alg],
+                audience=token_endpoint,
+                options={
+                    "require": [
+                        "iss",
+                        "sub",
+                        "aud",
+                        "exp",
+                        "iat",
+                        "jti",
+                    ]
+                },
+            )
+
+            # Umumnya untuk JWT Bearer Grant
+            if payload["iss"] != payload["sub"]:
+                raise ValueError("iss dan sub harus sama untuk client assertion")
+
+            #Validasi iat (maksimal 5 menit)
+            now = datetime.now(timezone.utc).timestamp()
+            max_age = 300
+
+            if now - payload["iat"] > max_age:
+                raise ValueError("Assertion terlalu lama")
+
+        except jwt.ExpiredSignatureError:
+            _logger.error("ExpiredSignatureError %s",assertion)
+            raise ValueError("Assertion sudah expired")
+
+        except jwt.InvalidAudienceError:
+            raise ValueError("Audience tidak valid")
+
+        except jwt.InvalidTokenError as e:
+            raise ValueError(f"JWT tidak valid: {e}")
+
+        user = client.user_id
+        if not user:
+            return {'status': 401, 'error': "invalid_grant", 'error_description': 'Client invalid.'}
+        if not payload.get('jti'):
+            raise ValueError("without jti")
+
+        try:
+            self.env['oidc.jwt.replay'].create({
+                'jti': payload['jti'],
+                'iss': payload['iss'],
+                'expired_at': fields.Datetime.to_datetime(
+                    datetime.fromtimestamp(payload['exp'])
+                ),
+            })
+        except IntegrityError:
+            raise ValueError('JWT assertion has already been used')
+        access_token, _, expires_in = self.generate_user_token(user, type='machine', **data)
+
         return {
             'access_token': access_token,
             'token_type': 'Bearer',

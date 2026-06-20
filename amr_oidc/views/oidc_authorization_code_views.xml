@@ -17,7 +17,7 @@
     </record>
 
     <record id="action_oidc_authorization_code" model="ir.actions.act_window">
-        <field name="name">JWT Tokens</field>
+        <field name="name">OIDC Auth Code</field>
         <field name="res_model">oidc.authorization.code</field>
         <field name="view_mode">tree</field>
     </record>
