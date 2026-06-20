@@ -13,22 +13,22 @@ _logger = logging.getLogger(__name__)
 
 
 class ControllerToken(Controller):
+
     @classmethod
-    def handle_exception(cls, ex):
+    def handle_exception(cls, ex, status=500, error=None, error_description=None):
 
         if isinstance(ex, HTTPException):
             raise ex
 
-        return cls.json_response(
-            {
-                "success": False,
-                "error": "general_error",
-                "error_description": str(ex),
-            },
-            status=500,
+        return cls.make_response(
+            status=status,
+            success=False,
+            error=error or "general_error",
+            error_description=error_description or str(ex)
         )
 
-    def valid_response(self, status, data):
+    @classmethod
+    def valid_response(cls, status, data):
         return Response(
             status=status,
             content_type='application/json; charset=utf-8',
@@ -38,7 +38,8 @@ class ControllerToken(Controller):
     def invalid_response(self, status, error, info=""):
         return self.make_response(status=status, error=error, error_description=info)
 
-    def make_response(self, status=200, **payload):
+    @classmethod
+    def make_response(cls, status=200, **payload):
         return Response(
             response=json.dumps(
                 payload
@@ -61,10 +62,10 @@ class ControllerToken(Controller):
     @route('/oidc/token', type='http', auth='none', methods=['POST'], csrf=False)
     def api_oidc_token(self, **kwargs):
         try:
-            payload = request.env['amr.token.helper'].oidc_token(**kwargs)
-        except Exception:
+            payload = request.env['amr.token.helper'].sudo().oidc_token(**kwargs)
+        except Exception as ex:
             _logger.exception("Error oidc_token")
-            return self.invalid_response(401, "invalid_request")
+            return self.handle_exception(ex, 401, "invalid_request")
 
         return self.make_response(**payload)
 
@@ -74,10 +75,10 @@ class ControllerToken(Controller):
 
     def oidc_introspect(self, **kwargs):
         try:
-            data = request.env['amr.token.helper'].oidc_introspect(**kwargs)
-        except Exception:
+            data = request.env['amr.token.helper'].sudo().oidc_introspect(**kwargs)
+        except Exception as ex:
             _logger.exception("Error oidc_introspect")
-            return self.invalid_response(401, "invalid_token")
+            return self.handle_exception(ex, 401, "invalid_token")
 
         active = data.get('active')
         if active:
@@ -88,8 +89,8 @@ class ControllerToken(Controller):
     @route(['/oidc/profile', '/oidc/userinfo'], type='http', auth='none', methods=['GET'], csrf=False)
     def api_oidc_profile(self, **kwargs):
         try:
-            payload = request.env['amr.token.helper'].oidc_profile(**kwargs)
-        except Exception:
+            payload = request.env['amr.token.helper'].sudo().oidc_profile(**kwargs)
+        except Exception as ex:
             _logger.exception("Error oidc_introspect")
-            return self.invalid_response(401, "invalid_token")
+            return self.handle_exception(ex, 401, "invalid_token")
         return self.make_response(**payload)

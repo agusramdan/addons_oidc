@@ -199,13 +199,18 @@ class TokenHelper(models.AbstractModel):
         return self.env['amr.resource.helper'].get_audience()
 
     @api.model
+    def get_token_endpoint(self, issuer=None):
+        issuer = issuer or self.get_issuer()
+        return f"{issuer}/oidc/token"
+
+    @api.model
     def openid_configuration(self):
         issuer = self.get_issuer()
         return {
             "issuer": issuer,
             "authorization_endpoint": f"{issuer}/oidc/authorize",
             "introspection_endpoint": f"{issuer}/oidc/introspect",
-            "token_endpoint": f"{issuer}/oidc/token",
+            "token_endpoint": self.get_token_endpoint(issuer),
             "userinfo_endpoint": f"{issuer}/oidc/userinfo",
             "jwks_uri": f"{issuer}/.well-known/jwks.json",
             "response_types_supported": [

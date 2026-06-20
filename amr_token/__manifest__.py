@@ -7,7 +7,7 @@
     'author': "Agus Muhammad Ramdan",
     'website': "http://www.agusramdan.tech",
     'category': 'API',
-    'version': '13.0.0.0.5',
+    'version': '13.0.0.0.6',
     'depends': ['base', 'base_setup', 'web', 'amr_resource'],
     'external_dependencies': {
         'python': ['pyjwt'],

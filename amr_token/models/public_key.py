@@ -127,16 +127,13 @@ class PublicKey(models.Model):
     def generate_token(self, payload):
         return jwt.encode(payload, self.private_key, algorithm=self.algorithm, headers={'kid': self.kid})
 
-    def validate_token(self, token, issuer=None, options=None):
+    def validate_token(self, token, issuer=None, audience=None, options=None):
         try:
             options = options or {"verify_aud": False}
-            return jwt.decode(token, self.public_key, issuer=issuer, algorithms=[self.algorithm], options=options)
+            return jwt.decode(token, self.public_key, issuer=issuer, audience=audience or None, algorithms=[self.algorithm], options=options)
         except InvalidTokenError as e:
             _logger.warning("Failed to validate token with public key: %s", e)
             raise
-
-    # def action_set_signing_key(self):
-    #     self.env['ir.config_parameter'].sudo().set_param('amr_token.signing_key_id', self.kid)
 
     def action_generate_key(self):
         data = self.env['amr.token.helper'].generate_key(self.algorithm)
