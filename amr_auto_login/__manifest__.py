@@ -9,6 +9,6 @@ Allow users to login through OAuth2 Provider.
 """,
     'maintainer': 'Agus Muhammad Ramdan',
     'depends': ['base', 'amr_resource'],
-    'version': '13.0.0.0.0',
+    'version': '13.0.0.0.1',
     'license': 'LGPL-3',
 }
