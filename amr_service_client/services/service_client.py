@@ -69,6 +69,13 @@ class ServiceClient:
         self.credential_data = self.loader.load_credential(credential)
         self.provider = env["service.auth.factory"].create_service_auth(self.credential_data)
 
+    def __enter__(self):
+        # self.client.connect()
+        return self
+
+    def __exit__(self, *args):
+        pass
+
     def call(self, method, path, params=None, payload=None, headers=None, audience=None):
         url = self.endpoint.get_url(path)
         request_headers = {}
@@ -207,7 +214,9 @@ class ServiceClientFactory(models.AbstractModel):
     _description = "Client"
 
     def _get_endpoint(self, code):
-        if isinstance(code, str):
+        if isinstance(code, int):
+            endpoint = self.env["service.endpoint"].browse(code)
+        elif isinstance(code, str):
             endpoint = self.env["service.endpoint"].search([("code", "=", code), ("active", "=", True), ], limit=1, )
         else:
             endpoint = code

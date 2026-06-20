@@ -50,7 +50,7 @@ class ServiceCredential(models.Model):
             credential_data = loader.load_credential(self)
             provider = self.env["service.auth.factory"].create_service_auth(credential_data)
             token = provider._request_token()
-            _logger.info(f"Credential {self.name} is valid: {credential_data} , token: {token}...")
+            _logger.debug(f"Credential {self.name} , token: {token}...")
             if 'access_token' in token:
                 self.env['amr.resource.helper'].decode(token['access_token'])
             return {
