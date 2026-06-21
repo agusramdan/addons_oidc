@@ -1,6 +1,8 @@
+# -*- coding: utf-8 -*-
+
+import json
 
 from odoo.http import Response
-import json
 
 
 class APIException(Exception):
@@ -20,7 +22,7 @@ def handle_exception(e):
                 "error_description": e.message,
             }),
             status=e.http_status,
-            content_type="application/json"
+            content_type="application/json",
         )
 
     # Odoo standard error
@@ -30,5 +32,5 @@ def handle_exception(e):
             "error_description": str(e)
         }),
         status=500,
-        content_type="application/json"
+        content_type="application/json",
     )

@@ -4,7 +4,7 @@ import logging
 import requests
 import re
 
-from odoo import api, fields, models
+from odoo import api, models
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
@@ -114,7 +114,11 @@ class ResourceHelper(models.AbstractModel):
     def validate(self, token):
         import jwt
         from jwt import PyJWKClient
-        header = jwt.get_unverified_header(token)
+        try:
+            header = jwt.get_unverified_header(token)
+        except:
+            _logger.error("Token %s", token)
+            raise
         alg = header.get('alg')
         if alg.startswith('HS'):
             _logger.warning("Token signed with HS algorithm, validating via introspection endpoint")
@@ -168,6 +172,7 @@ class ResourceHelper(models.AbstractModel):
         validate = self.sudo().validate(token)
         return self.get_user_match(validate)
 
+    @api.model
     def get_uid(self, payload):
         user = self.get_user_match(payload)
         return user and user.id
@@ -177,7 +182,7 @@ class ResourceHelper(models.AbstractModel):
         if not user:
             return False
         uid = self.get_uid(payload)
-        return bool(user.id == uid)
+        return user.id == uid
 
     @classmethod
     def get_param_token(cls):
@@ -193,7 +198,7 @@ class ResourceHelper(models.AbstractModel):
     @classmethod
     def get_bearer_token(cls):
         # https://tools.ietf.org/html/rfc2617#section-3.2.2
-        authorization = request.httprequest.environ.get("HTTP_AUTHORIZATION")
+        authorization = request.httprequest.environ.get("HTTP_AUTHORIZATION") or request.httprequest.headers.get("Authorization")
         if not authorization:
             _logger.info("Missing Authorization header.")
             return None

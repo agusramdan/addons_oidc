@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 
-from odoo import models, fields
+from odoo import fields, models
 from odoo.exceptions import ValidationError
 
 
@@ -14,12 +15,11 @@ class CreateUserWizard(models.TransientModel):
     template_id = fields.Many2one('res.users', required=True)
 
     def action_create(self):
-
         self.ensure_one()
         if self.env['res.users'].search([('login', '=', self.login)]):
-            raise ValidationError("Login already exists")
-        template = self.template_id
+            raise ValidationError("Login already exists.")
 
+        template = self.template_id
         user = self.env['res.users'].create({
             'name': self.name,
             'login': self.login,

@@ -2,7 +2,7 @@
 
 import logging
 
-from odoo import api, models, tools
+from odoo import api, models
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -67,7 +67,9 @@ class ResUsers(models.Model):
         raise NotImplemented
 
     @api.model
-    def add_url_access_token(self, url=None, **kw):
+    def add_url_access_token(self, url=None, url_type='access_token', **kw):
+        if url_type != 'access_token':
+            return self.get_auto_login_url(url=url, **kw)
         return url
 
     @api.model
@@ -83,8 +85,11 @@ class ResUsers(models.Model):
             raise UserError('Without token')
         if validate:
             payload = helper.validate(token)
+        else:
+            payload = self.env['ir.http'].get_jwt_payload()
+
         uid = helper.get_uid(payload)
         if uid != self.id:
             return self
 
-        return self.env.with_context(__access_token_context=payload)
+        return self.with_context(__access_token_context=payload)
