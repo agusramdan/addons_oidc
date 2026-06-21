@@ -1,20 +1,39 @@
 # -*- coding: utf-8 -*-
 
+import json
 import logging
 import requests
+import base64
+import traceback
 
-from odoo import api, models, tools
-
-from odoo.fields import Datetime, Date
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
-
-import requests
-import base64
-import logging
+from odoo import api, fields, models, tools
+from odoo.exceptions import ValidationError
+from odoo.tools import config
+from urllib.parse import urlparse
+from odoo.fields import Datetime, Date
+from odoo.tools.safe_eval import safe_eval, test_python_expr
 
 _logger = logging.getLogger(__name__)
+
+DEFAULT_PYTHON_CODE = """# Available variables:
+#  - ctx: Odoo Environment on which the action is triggered
+#  - env: Odoo Environment on which the action is triggered
+#  - user: user 
+#  - records : Record
+# To return an response, assign: 
+# path = ""
+# method = ""
+# audience = ""
+# params = {...}
+# headers = {...}
+# payload = {...}  
+
+
+\n\n\n\n
+"""
 
 
 def normalize_json(value):
@@ -59,15 +78,75 @@ def normalize_json(value):
     return str(value)
 
 
+class ServiceClientSend:
+
+    def __init__(self, service_client, payload, active_log=False, endpoint_id=None, credential_id=None):
+        self.payload = normalize_json(payload)
+        self.service_client = service_client
+        self.env = service_client.env
+        self.client_id = service_client.client_id
+        if endpoint_id is None:
+            self.endpoint_id = self.service_client.endpoint_id
+        else:
+            self.endpoint_id = endpoint_id
+        if active_log is None and self.endpoint_id:
+            self.active_log = self.endpoint_id.active_log
+        else:
+            self.active_log = active_log
+        if not credential_id and self.endpoint_id:
+            self.credential_id = self.endpoint_id.credential_id
+        else:
+            self.credential_id = credential_id
+
+    def dispatch_send(self):
+        response = None
+        error = None
+        active_log = self.active_log
+        request_context = {'payload': self.payload}
+        try:
+            request_context = self.service_client.prepare_request_context(**request_context)
+            response = requests.request(**request_context)
+            response.raise_for_status()
+            response_text = response.text
+            state = 'done'
+        except requests.RequestException as e:
+            _logger.error("Failed to send %s ", self.payload)
+            response_text = getattr(e.response, 'text', '') + str(e)
+            active_log = True
+            state = 'error'
+        except Exception:
+            # saat error lakukan log agar bisa send ullang
+            active_log = True
+            state = 'error'
+            response_text = response.text if response else traceback.format_exc()
+            _logger.exception("error dispatch_send %s",response.text )
+
+        if active_log:
+            request_context.pop('headers', None)
+            return self.env["service.client.log"].sudo().create({
+                'state': state,
+                'client_id': self.client_id.id if self.client_id else None,
+                'endpoint_id': self.endpoint_id.id if self.endpoint_id else None,
+                'credential_id': self.credential_id.id if self.credential_id else None,
+                'request_context': json.dumps(request_context, indent=4),
+                'response': response_text,
+            })
+
+
 class ServiceClient:
 
-    def __init__(self, env, endpoint, credential):
+    def __init__(self, env, endpoint, credential, path=None, method=None, client_id=None):
         self.env = env
         self.endpoint = endpoint
+        self.credential_id = credential
         self.loader = env["service.credential.loader"]
         self.credential = self.loader.get_credential(credential or endpoint.credential_id)
         self.credential_data = self.loader.load_credential(credential)
         self.provider = env["service.auth.factory"].create_service_auth(self.credential_data)
+        self.path = path
+        self.method = method
+        self.active_log = endpoint.active_log
+        self.client_id = client_id
 
     def __enter__(self):
         # self.client.connect()
@@ -76,41 +155,44 @@ class ServiceClient:
     def __exit__(self, *args):
         pass
 
-    def prepare_request_context(self,path, method=None, params=None, payload=None, headers=None,audience=None):
-        url = self.endpoint.get_url(path)
-        request_headers = {}
-        # request_headers.update(auth_headers)
-        request_headers.update(headers or {})
-        # Content - Type: text / plain
-        request_headers.setdefault("Content-Type", "text/plain")
-        request_headers.setdefault("Accept", "application/json")
+    def prepare_request_context(self, path=None, method=None, params=None, payload=None, headers=None, audience=None):
+        url = self.endpoint.get_url(path or self.path)
         request_context = {
             "url": url,
-            "headers": request_headers,
+            "headers": self.endpoint.request_headers_default(headers),
             "params": params,
             "json": normalize_json(payload),
             "timeout": self.endpoint.timeout,
         }
         if method:
             request_context['method'] = method
-        request_context = self.provider.authenticate(request_context, audience=audience or self.endpoint.audience, )
+        elif self.method:
+            request_context['method'] = self.method
+
+        request_context = self.provider.authenticate(request_context, audience=audience or self.endpoint.audience)
         return request_context
 
-    def call(self, method, path, params=None, payload=None, headers=None, audience=None):
-        request_context = self.prepare_request_context(path,method,params=params, payload=payload, headers=headers)
-        return requests.request(**request_context)
+    def call(self, method=None, path=None, params=None, payload=None, headers=None, audience=None, active_log=False):
+        request_context = self.prepare_request_context(path, method, params=params, payload=payload, headers=headers)
+        response = requests.request(**request_context)
+        return response
 
-    def get(self, path, params=None, **kwargs):
+    def get(self, path=None, params=None, **kwargs):
         return self.call(method="GET", path=path, params=params, **kwargs)
 
-    def post(self, path, payload=None, **kwargs):
+    def post(self, path=None, payload=None, **kwargs):
         return self.call(method="POST", path=path, payload=payload, **kwargs)
 
-    def put(self, path, payload=None, **kwargs):
+    def put(self, path=None, payload=None, **kwargs):
         return self.call(method="PUT", path=path, payload=payload, **kwargs)
 
-    def delete(self, path, **kwargs):
+    def delete(self, path=None, **kwargs):
         return self.call(method="DELETE", path=path, **kwargs)
+
+    def prepare_payload(self, **payload):
+        return ServiceClientSend(
+            self, payload, endpoint_id=self.endpoint, active_log=self.endpoint.active_log
+        )
 
 
 class RemoteObjectProxy:
@@ -214,9 +296,58 @@ class RemoteObjectProxy:
     __repr__ = __str__
 
 
-class ServiceClientFactory(models.AbstractModel):
+class ServiceClientFactory(models.Model):
     _name = 'service.client'
-    _description = "Client"
+    _description = "Service Client"
+
+    active = fields.Boolean(default=True)
+    name = fields.Char()
+    endpoint_id = fields.Many2one("service.endpoint")
+    credential_id = fields.Many2one("service.credential")
+    active_log = fields.Boolean()
+    code = fields.Text(
+        string='Python Code',
+        default=DEFAULT_PYTHON_CODE,
+        help="Write Python code that the action will execute. Some variables are "
+             "available for use; help about python expression is given in the help tab."
+    )
+
+    @api.model
+    def _get_eval_context(self):
+        """ evaluation context to pass to safe_eval """
+        return {
+            'ctx': self.env.context,
+            'env': self.env,
+            'user': self.env.user,
+        }
+
+    @api.constrains('code')
+    def _check_python_code(self):
+        for action in self.sudo().filtered('code'):
+            msg = test_python_expr(expr=action.code.strip(), mode="exec")
+            if msg:
+                raise ValidationError(msg)
+
+    def _run_action_code_multi(self, eval_context):
+        safe_eval(self.code.strip(), eval_context, mode="exec", nocopy=True)  # nocopy allows to return 'action'
+        return eval_context
+
+    def send_request(self, records, callback=None):
+        self.ensure_one()
+        eval_context = self._get_eval_context()
+        eval_context['records'] = records
+        eval_context = self._run_action_code_multi(eval_context)
+        path = eval_context.get('path') or None
+        method = eval_context.get('method') or "POST"
+        params = eval_context.get('params') or {}
+        headers = eval_context.get('headers') or {}
+        payload = eval_context.get('payload') or {}
+        # audience = eval_context.get('audience') or {}
+        client = self.get_service_client(self.endpoint_id, credential=self.credential_id)
+        response = client.call(method, path, params, payload, headers)
+        if callback:
+            callback(response)
+        return response
 
     def _get_endpoint(self, code):
         if isinstance(code, int):
@@ -229,10 +360,15 @@ class ServiceClientFactory(models.AbstractModel):
             raise ValueError("Service '%s' not found" % code)
         return endpoint
 
-    def get_service_client(self, service_code, credential=None):
-        endpoint = self._get_endpoint(service_code)
-        credential = credential or endpoint.credential_id
-        return ServiceClient(self.env, endpoint, credential)
+    def get_service_client(self, service_code, credential=None, path=None, method=None):
+        if self:
+            endpoint = self._get_endpoint(service_code or self.endpoint_id)
+            credential = credential or endpoint.credential_id or self.credential_id
+        else:
+            endpoint = self._get_endpoint(service_code)
+            credential = credential or endpoint.credential_id
+
+        return ServiceClient(self.env, endpoint, credential, path=path, method=method)
 
     def get_remote_object(self, service_code, model_name, credential=None, **kwargs):
         endpoint = self._get_endpoint(service_code)

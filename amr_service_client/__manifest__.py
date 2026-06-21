@@ -2,14 +2,20 @@
     'name': 'Service Client',
     'category': 'Tools',
     'author': 'Agus Muhammad Ramdan',
-    'version': '13.0.0.0.3',
+    'version': '13.0.0.1.0',
     'depends': ['base', 'web', 'base_setup', 'amr_resource'],
     'license': 'LGPL-3',
+    'external_dependencies': {
+        'python': ['pyjwt'],
+    },
     'data': [
         'security/ir.model.access.csv',
 
         'views/service_endpoint_views.xml',
         'views/service_credential_views.xml',
+        'views/service_client_views.xml',
+        'views/service_client_log_views.xml',
+
         'views/menuitem.xml',
 
         'wizards/service_credential.xml',

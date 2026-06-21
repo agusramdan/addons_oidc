@@ -12,6 +12,8 @@ from requests.exceptions import (
     HTTPError,
 )
 
+from odoo.exceptions import UserError
+
 _logger = logging.getLogger(__name__)
 
 SUPPORTED_ALGORITHMS = [
@@ -33,8 +35,8 @@ class AuthenticationProvider:
     def authenticate(self, request_context, audience=None):
         return request_context
 
-    # def get_headers(self, audience=None, ):
-    #     raise NotImplementedError()
+    def test_credential(self):
+        raise UserError("Test Credential Not available.")
 
 
 class ApiKeyProvider(AuthenticationProvider):
@@ -46,9 +48,6 @@ class ApiKeyProvider(AuthenticationProvider):
 
         return request_context
 
-    # def get_headers(self, audience=None, ):
-    #     return {self.credential["header"]: self.credential["value"]}
-
 
 class BearerProvider(AuthenticationProvider):
 
@@ -58,9 +57,6 @@ class BearerProvider(AuthenticationProvider):
         request_context["headers"]["Authorization"] = "Bearer %s" % self.credential["token"]
 
         return request_context
-
-    # def get_headers(self, audience=None, ):
-    #     return {"Authorization": "Bearer %s" % self.credential["token"]}
 
 
 class BasicProvider(AuthenticationProvider):
@@ -73,11 +69,6 @@ class BasicProvider(AuthenticationProvider):
         request_context["headers"]["Authorization"] = "Basic %s" % encoded
 
         return request_context
-
-    # def get_headers(self, audience=None, ):
-    #     token = ("%s:%s" % (self.credential["username"], self.credential["password"],))
-    #     encoded = base64.b64encode(token.encode()).decode()
-    #     return {"Authorization": "Basic %s" % encoded}
 
 
 class ClientSecretProvider(AuthenticationProvider):
@@ -129,7 +120,7 @@ class ClientSecretProvider(AuthenticationProvider):
         headers = {"Accept": "application/json", }
         connect_timeout = self.credential.get("connect_timeout", 10, )
         read_timeout = self.credential.get("read_timeout", 30, )
-        _logger.info("Requesting token ", "client_id=%s ", "audience=%s", self.credential.get("client_id"), audience, )
+        _logger.info("Requesting token client_id=%s audience=%s", self.credential.get("client_id"), audience, )
 
         try:
             response = requests.post(
@@ -179,8 +170,11 @@ class ClientSecretProvider(AuthenticationProvider):
 
         return request_context
 
-    # def get_headers(self, audience=None, ):
-    #     return {"Authorization": "Bearer %s" % self._get_token(audience=audience)}
+    def test_credential(self):
+        token = self._request_token()
+        _logger.debug(f"Credential token: {token}...")
+        # self.env['amr.resource.helper'].decode(token['access_token'])
+        return token
 
 
 class ServiceAccountProvider(ClientSecretProvider):
@@ -242,7 +236,7 @@ class ServiceAccountProvider(ClientSecretProvider):
         headers = {"Accept": "application/json", }
         connect_timeout = self.credential.get("connect_timeout", 10, )
         read_timeout = self.credential.get("read_timeout", 30, )
-        _logger.info("Requesting token ", "client_id=%s ", "audience=%s", self.credential.get("client_id"), audience, )
+        _logger.info("Requesting token client_id=%s audience=%s", self.credential.get("client_id"), audience, )
 
         try:
             response = requests.post(
@@ -325,3 +319,9 @@ class ServiceAccountProvider(ClientSecretProvider):
         if algorithm not in SUPPORTED_ALGORITHMS:
             raise ValueError("Unsupported algorithm")
         return jwt.encode(payload, private_key, algorithm=algorithm, headers=headers, )
+
+    def test_credential(self):
+        token= self._request_token()
+        _logger.debug(f"Credential token: {token}...")
+        # self.env['amr.resource.helper'].decode(token['access_token'])
+        return token

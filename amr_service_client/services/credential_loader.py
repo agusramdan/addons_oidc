@@ -144,3 +144,8 @@ class ServiceCredentialLoader(models.AbstractModel):
             raise ValueError("Missing credential type")
         if credential["type"] not in supported:
             raise ValueError("Unsupported credential type")
+
+    def get_credential_provider(self,credential):
+        loader = self.env["service.credential.loader"]
+        credential_data = loader.load_credential(credential)
+        return self.env["service.auth.factory"].create_service_auth(credential_data)

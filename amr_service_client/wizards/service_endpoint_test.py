@@ -17,7 +17,7 @@ class ServiceEndpointTestWizard(models.TransientModel):
         [("GET", "GET"), ("POST", "POST"), ("PUT", "PUT"), ("PATCH", "PATCH"), ("DELETE", "DELETE"), ],
         required=True, default="GET",
     )
-    path = fields.Char(required=True, default="/")
+    path = fields.Char(required=True, default="/api/test/connection/machine")
     params = fields.Text()
     headers = fields.Text()
     payload = fields.Text()

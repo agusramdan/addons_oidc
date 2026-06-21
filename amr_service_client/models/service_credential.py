@@ -29,6 +29,9 @@ class ServiceCredential(models.Model):
     credential_json = fields.Text()
     scopes = fields.Char(help="Comma-separated scopes")
 
+    def get_credential_provider(self):
+        return self.env["service.credential.loader"].get_credential_provider(self)
+
     def action_config_credential(self):
         self.ensure_one()
 
@@ -46,13 +49,8 @@ class ServiceCredential(models.Model):
     def action_test_credential(self):
         self.ensure_one()
         try:
-            loader = self.env["service.credential.loader"]
-            credential_data = loader.load_credential(self)
-            provider = self.env["service.auth.factory"].create_service_auth(credential_data)
-            token = provider._request_token()
-            _logger.debug(f"Credential {self.name} , token: {token}...")
-            if 'access_token' in token:
-                self.env['amr.resource.helper'].decode(token['access_token'])
+            provider = self.get_credential_provider()
+            provider.test_credential()
             return {
                 "type": "ir.actions.client",
                 "tag": "display_notification",
@@ -63,5 +61,5 @@ class ServiceCredential(models.Model):
                 }
             }
         except Exception as e:
-            _logger.error(f"Credential {self.name} is invalid: {e}")
+            _logger.exception(f"Credential {self.name} is invalid: {e}")
             raise UserError(f"Credential is invalid: {e}")
