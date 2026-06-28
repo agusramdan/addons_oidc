@@ -1,0 +1,50 @@
+<odoo>
+  <data>
+    <record id="amr_esign_pdf.view_pdf_sign_tree" model="ir.ui.view">
+      <field name="name">pdf.sign.tree</field>
+      <field name="model">pdf.sign</field>
+      <field name="arch" type="xml">
+        <tree string="PDF Signs">
+          <field name="name"/>
+          <field name="pdf_document_id"/>
+          <field name="partner_id"/>
+          <field name="signature_index"/>
+          <field name="state"/>
+        </tree>
+      </field>
+    </record>
+
+    <record id="amr_esign_pdf.view_pdf_sign_form" model="ir.ui.view">
+      <field name="name">pdf.sign.form</field>
+      <field name="model">pdf.sign</field>
+      <field name="arch" type="xml">
+        <form string="PDF Sign">
+          <sheet>
+            <group>
+              <field name="name"/>
+              <field name="pdf_document_id"/>
+              <field name="partner_id"/>
+              <field name="signature_index"/>
+              <field name="state"/>
+            </group>
+            <group>
+              <field name="cms_data"/>
+            </group>
+            <footer>
+              <button name="action_send" type="object" string="Send" class="btn-secondary"/>
+              <button name="action_apply_cms" type="object" string="Apply CMS" class="btn-primary"/>
+            </footer>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <record id="amr_esign_pdf.action_pdf_sign" model="ir.actions.act_window">
+      <field name="name">PDF Signs</field>
+      <field name="res_model">pdf.sign</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="amr_esign_pdf.menu_pdf_sign" name="Signs" parent="amr_esign_pdf.menu_pdf_document_root" action="amr_esign_pdf.action_pdf_sign"/>
+  </data>
+</odoo>
