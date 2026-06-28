@@ -51,7 +51,8 @@ class OidcClient(models.Model):
     authorization_ids = fields.One2many('oidc.authorization.code', 'client_id')
     key_ids = fields.One2many('oidc.client.key', 'client_id')
 
-    def check_credentials(self,client_secret):
+    def check_credentials(self, client_secret):
+        self.ensure_one()
         # todo next using hash method to check secret like user credentials
         if client_secret != self.client_secret:
             raise ValueError("Invalid secret")
