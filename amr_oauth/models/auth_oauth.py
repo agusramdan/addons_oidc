@@ -102,6 +102,9 @@ class AuthOAuthProvider(models.Model):
         email = validation.get('email')
         if email:
             return self.env['res.users'].search([('email', '=', email)], limit=1)
+        sub = validation.get('sub')
+        if sub:
+            return self.env['res.users'].search([('login', '=', sub)], limit=1)
         return None
 
     def get_user_token_login(self, token):
