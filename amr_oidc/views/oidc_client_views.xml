@@ -40,8 +40,8 @@
                                 <field name="client_secret" password="1" attrs="{'invisible':[('authentication_method','!=','client_secret')]}"/>
                                 <field name="user_id" />
                             </group>
-                            <field name="key_ids">
-                                <tree string="Public keys" attrs="{'invisible':[('authentication_method','!=','private_key_jwt')]}">
+                            <field name="key_ids" attrs="{'invisible':[('authentication_method','!=','private_key_jwt')]}">
+                                <tree string="Public keys" >
                                     <field name="active" />
                                     <field name="kid" />
                                     <field name="algorithm"/>
