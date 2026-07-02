@@ -7,9 +7,12 @@
         <tree string="PDF Signs">
           <field name="name"/>
           <field name="pdf_document_id"/>
-          <field name="partner_id"/>
-          <field name="signature_index"/>
-          <field name="state"/>
+          <field name="user_ca_data_id"/>
+          <field name="seq"/>
+          <field name="placeholder" />
+          <field name="on_page"/>
+          <field name="box"/>
+          <field name="deep_link"/>
         </tree>
       </field>
     </record>
@@ -20,20 +23,17 @@
       <field name="arch" type="xml">
         <form string="PDF Sign">
           <sheet>
+            <header/>
             <group>
               <field name="name"/>
               <field name="pdf_document_id"/>
-              <field name="partner_id"/>
-              <field name="signature_index"/>
-              <field name="state"/>
+              <field name="user_ca_data_id"/>
+              <field name="seq"/>
+              <field name="placeholder" />
+              <field name="on_page"/>
+              <field name="box"/>
+              <field name="deep_link"/>
             </group>
-            <group>
-              <field name="cms_data"/>
-            </group>
-            <footer>
-              <button name="action_send" type="object" string="Send" class="btn-secondary"/>
-              <button name="action_apply_cms" type="object" string="Apply CMS" class="btn-primary"/>
-            </footer>
           </sheet>
         </form>
       </field>
@@ -45,6 +45,6 @@
       <field name="view_mode">tree,form</field>
     </record>
 
-    <menuitem id="amr_esign_pdf.menu_pdf_sign" name="Signs" parent="amr_esign_pdf.menu_pdf_document_root" action="amr_esign_pdf.action_pdf_sign"/>
+
   </data>
 </odoo>

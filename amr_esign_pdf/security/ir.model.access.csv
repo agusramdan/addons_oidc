@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_pdf_document_user,pdf.document user,model_pdf_document,base.group_user,1,1,1,1
 access_pdf_sign_user,pdf.sign user,model_pdf_sign,base.group_user,1,1,1,1
+access_user_ca_data_user,user.ca.data user,model_user_ca_data,base.group_user,1,1,1,1

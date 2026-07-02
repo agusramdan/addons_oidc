@@ -1,5 +1,7 @@
 import base64
 import hashlib
+import fitz
+from io import BytesIO
 
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError
@@ -13,69 +15,114 @@ class PdfDocument(models.Model):
     name = fields.Char(required=True)
     pdf_file = fields.Binary('PDF File')
     pdf_filename = fields.Char('PDF Filename')
-    pdf_hash = fields.Char('PDF Hash', compute='_compute_pdf_hash', store=True, readonly=True)
-    pdf_lock = fields.Binary('PDF Lock')
     signed_pdf = fields.Binary('Signed PDF')
     signed_pdf_filename = fields.Char('Signed PDF Filename')
     state = fields.Selection(
-        [('draft', 'Draft'), ('request', 'Request'), ('signed', 'Signed')],
+        [('draft', 'Draft'), ('signed', 'Signed')],
         default='draft',
         string='State',
     )
-
     signature_ids = fields.One2many('pdf.sign', 'pdf_document_id', string='Signatures')
 
-    @api.depends('pdf_file')
-    def _compute_pdf_hash(self):
-        for record in self:
-            if record.pdf_file:
-                try:
-                    raw_pdf = base64.b64decode(record.pdf_file)
-                    record.pdf_hash = hashlib.sha256(raw_pdf).hexdigest()
-                except Exception:
-                    record.pdf_hash = False
+    def _run_async(self, coro):
+        import asyncio
+        import threading
+
+        if threading.current_thread() is threading.main_thread():
+            loop = asyncio.new_event_loop()
+        else:
+            if hasattr(asyncio, 'WindowsSelectorEventLoopPolicy'):
+                loop = asyncio.WindowsSelectorEventLoopPolicy().new_event_loop()
             else:
-                record.pdf_hash = False
-
-    def action_prepare_signature(self):
-        self.ensure_one()
-        if not self.pdf_file:
-            raise UserError(_('Upload PDF file before preparing for signature.'))
-        self.pdf_lock = self._prepare_pdf_lock(self.pdf_file)
-        self.state = 'request'
-        return True
-
-    def action_reset(self):
-        self.write({
-            'state': 'draft',
-            'pdf_lock': False,
-            'signed_pdf': False,
-            'signed_pdf_filename': False,
-        })
-        return True
-
-    def _prepare_pdf_lock(self, pdf_data):
-        # Placeholder for preparing PDF with a signature placeholder.
-        # For PAdES multiple signature flow, this should create a PDF with a
-        # reserved /Contents buffer and proper signature dictionary.
-        return pdf_data
+                loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro)
+        finally:
+            loop.close()
 
     def action_sign_pdf(self):
-        """
-        Create final signed PDF when all `pdf.sign` records are in state 'signed'.
-        Currently this will simply copy `pdf_lock` to `signed_pdf` as a placeholder.
-        Real implementation should perform incremental update and embed CMS
-        from each `pdf.sign.cms_data` into `/Contents` using pyHanko/pikepdf.
-        """
         self.ensure_one()
-        unsigned = self.signature_ids.filtered(lambda s: s.state != 'signed')
-        if unsigned:
-            raise UserError(_('Not all signatures are applied. Pending: %s') % (len(unsigned),))
-        if not self.pdf_lock:
-            raise UserError(_('No prepared PDF lock available.'))
-        # Placeholder: simply set signed_pdf to pdf_lock. Replace with real
-        # PAdES assembly using pyHanko to merge CMS blobs into the PDF.
-        self.signed_pdf = self.pdf_lock
-        self.signed_pdf_filename = self.pdf_filename or 'signed_document.pdf'
+        if not self.pdf_file:
+            raise UserError(_('Upload PDF file before signing.'))
+        if not self.signature_ids:
+            raise UserError(_('Add at least one signature line before signing.'))
+
+        try:
+            from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+            from pyhanko.sign import signers as ph_signers
+            from pyhanko.sign.fields import SigFieldSpec
+            from pyhanko.sign.signers import PdfSignatureMetadata
+            from pyhanko.stamp import QRStampStyle
+        except ImportError:
+            raise UserError(_('pyHanko is required to generate signed PDF.'))
+
+        pdf_bytes = base64.b64decode(self.pdf_file)
+
+        for sign in self.signature_ids:
+            sig_name = sign.name or 'Signature_%d' % (sign.seq or 1)
+            kwargs = {'sig_field_name': sig_name}
+            rects = None
+            placeholder = sign.placeholder
+            if placeholder:
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                for page_number, page in enumerate(doc):
+                    rects = page.search_for(placeholder)
+                    if rects:
+                        rects = page.search_for(placeholder)
+                        kwargs['on_page'] = page_number
+                        rect = rects[0]
+                        kwargs['box'] = (
+                            rect.x0,
+                            rect.y0,
+                            rect.x0 + 180,
+                            rect.y0 + 70,
+                        )
+                        break
+
+            if not rects:
+                if getattr(sign, 'on_page', False) is not False:
+                    kwargs['on_page'] = sign.on_page - 1
+                if getattr(sign, 'box', False):
+                    coords = [c.strip() for c in str(sign.box).split(',') if c.strip()]
+                    if len(coords) == 4:
+                        try:
+                            kwargs['box'] = tuple(float(c) for c in coords)
+                        except ValueError:
+                            pass
+
+            field_spec = SigFieldSpec(**kwargs)
+            signature_meta = PdfSignatureMetadata(field_name=sig_name, name=sig_name)
+            signer = sign.get_signer()
+            stamp_style = QRStampStyle(
+                stamp_text="""
+            Ditanda tangani secara digital
+
+            %(signer)s
+            Timestamp: %(ts)s
+            Scan QR untuk verifikasi
+            
+            """
+            )
+            pdf_signer = ph_signers.PdfSigner(
+                signature_meta=signature_meta,
+                signer=signer,
+                new_field_spec=field_spec,
+                stamp_style=stamp_style,
+            )
+
+            output = BytesIO()
+            # pdf_signer.sign_pdf(IncrementalPdfFileWriter(BytesIO(pdf_bytes)), output=output)
+            self._run_async(pdf_signer.async_sign_pdf(
+                IncrementalPdfFileWriter(BytesIO(pdf_bytes)),
+                appearance_text_params={
+                    "url": sign.deep_link,
+                    "signer": sign.user_ca_data_id.name,
+                },
+                output=output))
+            pdf_bytes = output.getvalue()
+
+        self.signed_pdf = base64.b64encode(pdf_bytes)
+        pdf_filename = getattr(self, 'pdf_filename', False) or '%s_signed.pdf' % (self.name or 'signed_document')
+        self.signed_pdf_filename = pdf_filename
         self.state = 'signed'
         return True

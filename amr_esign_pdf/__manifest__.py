@@ -7,18 +7,24 @@
     'author': 'Auto Generated',
     'website': 'https://example.com',
     'license': 'LGPL-3',
-    'depends': ['base'],
+    'depends': ['base', 'web', 'mail', ],
     'data': [
         'security/ir.model.access.csv',
+
         'views/pdf_document_views.xml',
         'views/pdf_sign_views.xml',
+        'views/user_ca_data_views.xml',
+
+        'wizard/user_ca_data_wizard.xml',
+
+        'views/menuitems.xml',
     ],
     'demo': [],
-    'assets': [],
+    'assets': {},
     'installable': True,
     'auto_install': False,
     'application': False,
     'external_dependencies': {
-        'python': ['pyhanko', 'pikepdf']
+        'python': ['pyhanko', 'PyMuPDF', 'pyhanko-certvalidator', 'cryptography']
     },
 }
