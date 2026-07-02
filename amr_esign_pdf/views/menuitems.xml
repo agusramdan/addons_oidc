@@ -1,0 +1,13 @@
+<odoo>
+    <menuitem id="menu_root" name="ESign PDF" sequence="10" />
+
+    <menuitem id="menu_sign" name="Sign" parent="menu_root"/>
+    <menuitem id="menu_pdf_document" name="Documents" parent="menu_sign" action="action_pdf_document"/>
+    <menuitem id="menu_pdf_sign" name="Signs" parent="menu_sign" action="action_pdf_sign"/>
+
+    <menuitem id="menu_user_ca" name="User CA" parent="menu_root"/>
+    <menuitem id="menu_user_ca_data" name="CA Data" parent="menu_user_ca" action="action_user_ca_data"/>
+    <menuitem id="menu_generate_ca_data" name="Generate CA" parent="menu_user_ca"
+              action="action_user_ca_data_wizard" groups="base.group_system"
+    />
+</odoo>
