@@ -1,41 +1,58 @@
 <odoo>
-  <data>
-    <record id="amr_esign_pdf.view_user_ca_data_tree" model="ir.ui.view">
-      <field name="name">user.ca.data.tree</field>
-      <field name="model">user.ca.data</field>
-      <field name="arch" type="xml">
-        <tree string="CA Data">
-          <field name="name"/>
-          <field name="user_id"/>
-        </tree>
-      </field>
-    </record>
+    <data>
+        <record id="amr_esign_pdf.view_user_ca_data_tree" model="ir.ui.view">
+            <field name="name">user.ca.data.tree</field>
+            <field name="model">user.ca.data</field>
+            <field name="arch" type="xml">
+                <tree string="CA Data">
+                    <field name="name"/>
+                    <field name="user_id"/>
+                    <field name="signature_scope"/>
+                    <field name="provider"/>
+                </tree>
+            </field>
+        </record>
 
-    <record id="amr_esign_pdf.view_user_ca_data_form" model="ir.ui.view">
-      <field name="name">user.ca.data.form</field>
-      <field name="model">user.ca.data</field>
-      <field name="arch" type="xml">
-        <form string="User CA Data">
-          <sheet>
-            <group>
-              <field name="name"/>
-              <field name="user_id"/>
-            </group>
-            <group>
-              <field name="certificate"/>
-              <field name="private_key"/>
-              <field name="public_key" readonly="1"/>
-            </group>
-          </sheet>
-        </form>
-      </field>
-    </record>
+        <record id="amr_esign_pdf.view_user_ca_data_form" model="ir.ui.view">
+            <field name="name">user.ca.data.form</field>
+            <field name="model">user.ca.data</field>
+            <field name="arch" type="xml">
+                <form string="User CA Data">
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                                <field name="user_id"/>
+                                <field name="not_valid_after" />
+                                <field name="auto_signature"/>
+                                <field name="signature_scope"/>
+                            </group>
+                            <group>
+                                <field name="provider"/>
+                                <field name="algorithm" />
+                                <field name="serial_number"/>
+                                <field name="password" type="password"/>
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Certificate">
+                                <field name="certificate"/>
+                                <field name="public_key" readonly="1"/>
+                            </page>
+                            <page string="Private Key">
+                                <field name="private_key"/>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-    <record id="amr_esign_pdf.action_user_ca_data" model="ir.actions.act_window">
-      <field name="name">User CA Data</field>
-      <field name="res_model">user.ca.data</field>
-      <field name="view_mode">tree,form</field>
-    </record>
+        <record id="amr_esign_pdf.action_user_ca_data" model="ir.actions.act_window">
+            <field name="name">User CA Data</field>
+            <field name="res_model">user.ca.data</field>
+            <field name="view_mode">tree,form</field>
+        </record>
 
-  </data>
+    </data>
 </odoo>

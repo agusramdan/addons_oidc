@@ -1,0 +1,12 @@
+pyhanko sign addfields --field 1/50,50,250,100/Signer1 --field 1/50,150,250,200/Signer2 vendor-bill.pdf output.pdf
+
+
+pyhanko sign addsig pemder --field Signature1 --key private_key.pem --cert certificate.pem document.pdf signed.pdf
+pyhanko sign addfields --field 1/50,50,250,100/Signature1 vendor-bills-2026_04_0066.pdf vendor-bills-field.pdf
+pyhanko sign addsig pemder --field Signature1 --key private_key.pem --cert certificate.pem vendor-bills-field.pdf signed.pdf
+pyhanko sign addsig --field 1/50,50,250,100/Signature1 pemder --key private_key.pem --cert certificate.pem vendor-bills-2026_04_0066.pdf signed.pdf
+
+openssl genrsa -out private_key.pem 4096
+openssl req -new -key private_key.pem -out request.csr
+
+pyhanko sign addsig --field signature_1nkvm pemder --key private_key.pem --cert certificate.pem VendorBills-BILL_2026_04_0066-signature_1nkvm.pdf signed.pdf

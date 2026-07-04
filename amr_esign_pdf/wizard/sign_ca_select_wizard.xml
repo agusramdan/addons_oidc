@@ -1,0 +1,42 @@
+<odoo>
+    <data>
+        <record id="view_ca_select_wizard_form" model="ir.ui.view">
+            <field name="name">sign.ca.select.wizard.form</field>
+            <field name="model">sign.ca.select.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Select Certificate Authority (CA)">
+                    <group>
+                        <field name="user_ca_id"
+                               options="{'no_create': True, 'no_open': True}"
+                        />
+                        <field name="password"/>
+                        <field name="pdf_sign_id" invisible="1"/>
+                        <field name="user_id" readonly="1"/>
+                        <field name="signature_pdf"/>
+                    </group>
+
+                    <footer>
+                        <button name="action_sign_pdf"
+                                string="Sign"
+                                type="object"
+                                class="btn-primary"
+                        />
+
+                        <button string="Cancel"
+                                special="cancel"
+                                class="btn-secondary"
+                        />
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="amr_esign_pdf.action_sign_ca_select_wizard" model="ir.actions.act_window">
+            <field name="name">Select Certificate Authority (CA)</field>
+            <field name="res_model">sign.ca.select.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+
+    </data>
+</odoo>

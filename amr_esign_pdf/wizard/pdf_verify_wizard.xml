@@ -1,0 +1,52 @@
+<odoo>
+    <data>
+        <record id="view_pdf_verify_wizard_form" model="ir.ui.view">
+            <field name="name">pdf.verify.wizard.form</field>
+            <field name="model">pdf.verify.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Verify PDF">
+                    <group>
+                        <field name="pdf_file" filename="filename"/>
+                        <field name="filename"/>
+                        <field name="state" readonly="1"/>
+                        <field name="message" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Signatures">
+                            <field name="line_ids" readonly="1">
+                                <tree>
+                                    <field name="field_name"/>
+                                    <field name="valid"/>
+                                    <field name="signer_name"/>
+                                    <field name="user_ca_id"/>
+                                    <field name="signing_time"/>
+                                    <field name="serial_number"/>
+                                    <field name="issuer"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                    <footer>
+                        <button
+                            string="Verify"
+                            type="object"
+                            name="action_verify"
+                            class="btn-primary"
+                        />
+                        <button
+                            string="Close"
+                            special="cancel"
+                        />
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_pdf_verify_wizard" model="ir.actions.act_window">
+            <field name="name">Pdf Verify Wizard Data</field>
+            <field name="res_model">pdf.verify.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+    </data>
+</odoo>

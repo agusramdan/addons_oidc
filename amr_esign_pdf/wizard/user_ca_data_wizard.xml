@@ -1,6 +1,5 @@
 <odoo>
   <data>
-
     <record id="amr_esign_pdf.view_user_ca_data_wizard_form" model="ir.ui.view">
       <field name="name">user.ca.data.wizard.form</field>
       <field name="model">user.ca.data.wizard</field>
@@ -8,10 +7,17 @@
         <form string="Generate CA Data">
           <sheet>
             <group>
-              <field name="name"/>
-              <field name="user_id"/>
-              <field name="key_algorithm"/>
-              <field name="validity_days"/>
+              <group>
+                <field name="name"/>
+                <field name="user_id"/>
+                <field name="org_name"/>
+              </group>
+              <group>
+                <field name="private_key_password" type="password" />
+                <field name="algorithm"/>
+                <field name="validity_days"/>
+                <field name="serial_number" readonly="1"/>
+              </group>
             </group>
             <group>
               <field name="certificate"/>
