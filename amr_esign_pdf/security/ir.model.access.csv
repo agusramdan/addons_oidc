@@ -1,4 +1,14 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_pdf_document_user,pdf.document user,model_pdf_document,base.group_user,1,1,1,1
-access_pdf_sign_user,pdf.sign user,model_pdf_sign,base.group_user,1,1,1,1
+access_pdf_document_user,pdf.document user,model_pdf_document,base.group_user,1,0,0,0
+access_pdf_document_pdf_sign_user,pdf.document pdf_sign_user,model_pdf_document,amr_esign_pdf.group_pdf_sign_user,1,1,1,1
+
+access_pdf_sign_user,pdf.sign user,model_pdf_sign,base.group_user,1,0,1,0
+access_pdf_sign_pdf_sign_user,pdf.sign pdf_sign_user,model_pdf_sign,amr_esign_pdf.group_pdf_sign_user,1,1,1,1
+
 access_user_ca_data_user,user.ca.data user,model_user_ca_data,base.group_user,1,1,1,1
+access_user_ca_data_system,user.ca.data system,model_user_ca_data,base.group_system,1,1,1,1
+
+access_pdf_sign_template_user,pdf.sign.template user,model_pdf_sign_template,base.group_user,1,0,0,0
+access_pdf_sign_template_manager,pdf.sign.template manager,model_pdf_sign_template,base.group_system,1,1,1,1
+
+access_pdf_document_demo_user,pdf.document user,model_pdf_document_demo,base.group_user,1,1,1,1

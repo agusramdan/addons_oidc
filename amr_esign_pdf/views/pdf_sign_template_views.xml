@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_pdf_sign_template_tree" model="ir.ui.view">
+        <field name="name">pdf.sign.template.tree</field>
+        <field name="model">pdf.sign.template</field>
+        <field name="arch" type="xml">
+            <tree string="PDF Signature Templates">
+                <field name="name"/>
+                <field name="template_type"/>
+                <field name="renderer"/>
+                <field name="company_id"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_pdf_sign_template_form" model="ir.ui.view">
+        <field name="name">pdf.sign.template.form</field>
+        <field name="model">pdf.sign.template</field>
+        <field name="arch" type="xml">
+
+            <form string="PDF Signature Template">
+                <header>
+                    <field name="active" invisible="1"/>
+                </header>
+                <sheet>
+
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+
+                    <group>
+
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="template_type"/>
+                            <field name="renderer"/>
+                        </group>
+
+                        <group>
+                            <field name="width"/>
+                            <field name="height"/>
+                        </group>
+
+                    </group>
+
+                    <notebook>
+
+                        <page string="Template">
+
+                            <group attrs="{'invisible':[('renderer','!=','pdf')]}">
+                                <field name="pdf_template" filename="pdf_template_filename" attrs="{'required':[('renderer','=','pdf')]}"/>
+                                <field name="pdf_template_filename" invisible="1"/>
+                            </group>
+
+                            <group attrs="{'invisible':[('renderer','!=','qweb')]}">
+                                <field name="qweb_view_id" attrs="{'required':[('renderer','=','qweb')]}"/>
+                            </group>
+                            <group attrs="{'invisible':[('renderer','!=','text')]}">
+                                <field name="qr_position" attrs="{'required':[('renderer','=','text')]}"/>
+                            </group>
+                            <group attrs="{'invisible':[('renderer','!=','text')]}">
+                                <field name="text_template" nolabel="1" attrs="{'required':[('renderer','=','text')]}"/>
+                            </group>
+                        </page>
+                        <page string="Placeholder">
+                            <group>
+                                <field name="offset_x" />
+                                <field name="offset_y" />
+                            </group>
+                        </page>
+                        <page string="Render Config">
+
+                            <field name="render_config" nolabel="1" widget="text"/>
+
+                        </page>
+
+                        <page string="Preview">
+
+                            <field name="preview" widget="image" class="oe_avatar" readonly="1"/>
+
+                        </page>
+
+                        <page string="Notes">
+
+                            <field name="notes" nolabel="1"/>
+
+                        </page>
+
+                    </notebook>
+
+                </sheet>
+
+            </form>
+
+        </field>
+    </record>
+
+    <record id="view_pdf_sign_template_search" model="ir.ui.view">
+        <field name="name">pdf.sign.template.search</field>
+        <field name="model">pdf.sign.template</field>
+        <field name="arch" type="xml">
+
+            <search>
+
+                <field name="name"/>
+                <field name="company_id"/>
+                <filter string="Active" name="active" domain="[('active','=',True)]"/>
+
+                <separator/>
+
+                <filter name="filter_signature" string="Signature" domain="[('template_type','=','signature')]"/>
+                <filter name="filter_stamp" string="Stamp" domain="[('template_type','=','stamp')]"/>
+                <filter name="filter_watermark" string="Watermark"  domain="[('template_type','=','watermark')]"/>
+
+                <separator/>
+
+                <filter name="filter_pdf" string="PDF" domain="[('renderer','=','pdf')]"/>
+                <filter name="filter_qweb" string="QWeb" domain="[('renderer','=','qweb')]"/>
+                <filter name="filter_text" string="Text" domain="[('renderer','=','text')]"/>
+
+                <group expand="0" string="Group By">
+                    <filter name="group_by_company_id" string="Company" context="{'group_by':'company_id'}"/>
+                    <filter name="group_by_template_type" string="Type" context="{'group_by':'template_type'}"/>
+                    <filter name="group_by_renderer" string="Renderer" context="{'group_by':'renderer'}"/>
+                </group>
+
+            </search>
+
+        </field>
+    </record>
+
+    <record id="action_pdf_sign_template" model="ir.actions.act_window">
+        <field name="name">PDF Templates</field>
+        <field name="res_model">pdf.sign.template</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_pdf_sign_template_search"/>
+    </record>
+
+</odoo>

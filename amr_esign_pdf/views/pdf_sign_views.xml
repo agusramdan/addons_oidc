@@ -1,50 +1,85 @@
 <odoo>
-  <data>
-    <record id="amr_esign_pdf.view_pdf_sign_tree" model="ir.ui.view">
-      <field name="name">pdf.sign.tree</field>
-      <field name="model">pdf.sign</field>
-      <field name="arch" type="xml">
-        <tree string="PDF Signs">
-          <field name="name"/>
-          <field name="pdf_document_id"/>
-          <field name="user_ca_data_id"/>
-          <field name="seq"/>
-          <field name="placeholder" />
-          <field name="on_page"/>
-          <field name="box"/>
-          <field name="deep_link"/>
-        </tree>
-      </field>
-    </record>
+    <data>
+        <record id="amr_esign_pdf.view_pdf_sign_tree" model="ir.ui.view">
+            <field name="name">pdf.sign.tree</field>
+            <field name="model">pdf.sign</field>
+            <field name="arch" type="xml">
+                <tree string="PDF Signs">
+                    <field name="seq"/>
+                    <field name="name"/>
+                    <field name="pdf_document_id" optional="hide"/>
+                    <field name="user_id" />
+                    <field name="user_ca_data_id" groups="base.group_erp_manager" optional="hide"/>
+                    <field name="placeholder" optional="hide"/>
+                    <field name="page_box" optional="hide"/>
+                    <field name="deep_link" optional="hide"/>
+                    <field name="state" />
+                </tree>
+            </field>
+        </record>
 
-    <record id="amr_esign_pdf.view_pdf_sign_form" model="ir.ui.view">
-      <field name="name">pdf.sign.form</field>
-      <field name="model">pdf.sign</field>
-      <field name="arch" type="xml">
-        <form string="PDF Sign">
-          <sheet>
-            <header/>
-            <group>
-              <field name="name"/>
-              <field name="pdf_document_id"/>
-              <field name="user_ca_data_id"/>
-              <field name="seq"/>
-              <field name="placeholder" />
-              <field name="on_page"/>
-              <field name="box"/>
-              <field name="deep_link"/>
-            </group>
-          </sheet>
-        </form>
-      </field>
-    </record>
+        <record id="amr_esign_pdf.view_pdf_sign_form" model="ir.ui.view">
+            <field name="name">pdf.sign.form</field>
+            <field name="model">pdf.sign</field>
+            <field name="arch" type="xml">
+                <form string="PDF Sign">
+                    <header>
+                        <button name="action_open_sign_wizard" type="object" string="Sign PDF" class="btn-primary"
+                                attrs="{'invisible': [('state', '!=', 'request')] }"
+                        />
+                        <field name="state" widget="statusbar" readonly="1"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="seq" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="pdf_document_id" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="deep_link_hash" invisible="1"/>
+                            </group>
+                            <group>
+                                <field name="user_ca_data_id" groups="base.group_erp_manager"
+                                       attrs="{'readonly': [('state', '!=', 'draft')] }"
+                                />
+                                <field name="user_id" attrs="{'readonly': [('state', '!=', 'draft')] }" />
+                            </group>
+                        </group>
+                        <notebook>
+                            <!-- QR Challenge -->
+                            <page string="Payload">
+                                <field name="payload"/>
+                            </page>
+                            <page string="QR" attrs="{'invisible':[('deep_link_hash','=',False)]}">
+                                <group>
+                                    <field name="deep_link" readonly="1" widget="url"/>
+                                </group>
+                                <group>
+                                    <field name="deep_link_html" nolabel="1" widget="html" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="Appearance" >
+                                <group>
+                                    <group>
+                                        <field name="template_id" readonly="1"/>
+                                        <field name="width" attrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                        <field name="height" aattrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                    </group>
+                                    <group>
+                                        <field name="placeholder" attrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                        <field name="page_box" attrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                    </group>
+                                </group>
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-    <record id="amr_esign_pdf.action_pdf_sign" model="ir.actions.act_window">
-      <field name="name">PDF Signs</field>
-      <field name="res_model">pdf.sign</field>
-      <field name="view_mode">tree,form</field>
-    </record>
-
-
-  </data>
+        <record id="amr_esign_pdf.action_pdf_sign" model="ir.actions.act_window">
+            <field name="name">PDF Signs</field>
+            <field name="res_model">pdf.sign</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+    </data>
 </odoo>

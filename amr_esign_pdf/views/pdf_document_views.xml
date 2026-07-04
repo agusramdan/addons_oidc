@@ -1,53 +1,182 @@
 <odoo>
-  <data>
-    <record id="view_pdf_document_tree" model="ir.ui.view">
-      <field name="name">pdf.document.tree</field>
-      <field name="model">pdf.document</field>
-      <field name="arch" type="xml">
-        <tree string="PDF Documents">
-          <field name="name"/>
-          <field name="state"/>
-          <field name="signed_pdf_filename"/>
-        </tree>
-      </field>
-    </record>
+    <data>
+        <record id="view_pdf_document_tree" model="ir.ui.view">
+            <field name="name">pdf.document.tree</field>
+            <field name="model">pdf.document</field>
+            <field name="arch" type="xml">
+                <tree string="PDF Documents">
+                    <field name="name"/>
+                    <field name="template_id"/>
+                    <field name="confidentiality"/>
+                    <field name="signature_scope"/>
+                    <field name="state"/>
+                    <field name="pdf_filename"/>
+                    <field name="signed_pdf_filename"/>
+                </tree>
+            </field>
+        </record>
 
-    <record id="view_pdf_document_form" model="ir.ui.view">
-      <field name="name">pdf.document.form</field>
-      <field name="model">pdf.document</field>
-      <field name="arch" type="xml">
-        <form string="PDF Document">
-          <header>
-              <button name="action_sign_pdf" type="object" string="Sign PDF" class="btn-primary"/>
-          </header>
-          <sheet>
-            <group>
-              <field name="name"/>
-              <field name="state"/>
-            </group>
-            <group>
-              <field name="pdf_file" filename="pdf_filename"/>
-              <field name="pdf_filename" />
-            </group>
-            <group>
-              <field name="signed_pdf" filename="signed_pdf_filename"/>
-              <field name="signed_pdf_filename"/>
-            </group>
-            <group>
-              <field name="signature_ids"/>
-            </group>
-          </sheet>
-        </form>
-      </field>
-    </record>
+        <record id="view_pdf_document_form" model="ir.ui.view">
+            <field name="name">pdf.document.form</field>
+            <field name="model">pdf.document</field>
+            <field name="arch" type="xml">
+                <form string="PDF Document">
+                    <header>
+                        <button name="action_prepare_signature" type="object" string="Prepare Signature" class="btn-primary"
+                                attrs="{'invisible': [('state', '!=', 'draft')] }"
+                                groups="amr_esign_pdf.group_pdf_sign_user"
+                        />
+                        <button name="action_sign_all_pdf" type="object" string="Admin Sign PDF" class="btn-primary"
+                                attrs="{'invisible': [('state', '!=', 'request')] }"
+                                groups="amr_esign_pdf.group_pdf_sign_manager"
+                        />
+                        <button name="action_sign_pdf" type="object" string="Sign PDF" class="btn-primary"
+                                attrs="{'invisible': [('state', '!=', 'request')] }"
+                                groups="amr_esign_pdf.group_pdf_sign_user"
+                        />
+                        <button name="action_reset" type="object" string="Reset" class="btn-secondary"
+                                attrs="{'invisible': [('state', '=', 'draft')] }"
+                                groups="amr_esign_pdf.group_pdf_sign_manager"
+                        />
+                        <button name="action_download_pdf"
+                                type="object"
+                                string="Download PDF"
+                                class="oe_highlight"
+                        />
+                        <field name="state" widget="statusbar" readonly="1"/>
+                    </header>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="confidentiality" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="signature_scope" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="template_id" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                            </group>
+                            <group>
+                                <field name="pdf_file" filename="pdf_filename" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="pdf_filename" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                <field name="user_id" attrs="{'readonly': [('state', '!=', 'draft')] }" />
+                                <field name="company_id" attrs="{'readonly': [('state', '!=', 'draft')] }" groups="base.group_multi_company" />
+                            </group>
+                        </group>
+                        <notebook>
+                            <page string="Signatures">
+                                <field name="signature_ids" context="{'default_pdf_document_id': active_id}">
+                                    <tree string="PDF Signs">
+                                        <field name="seq"/>
+                                        <field name="name"/>
+                                        <field name="user_id" />
+                                        <field name="state" />
+                                        <field name="user_execution_id" optional="hide"/>
+                                        <field name="date_execution" />
+                                        <field name="user_ca_data_id" groups="base.group_erp_manager" optional="hide"/>
+                                        <field name="deep_link" optional="hide"/>
+                                    </tree>
+                                    <form string="PDF Sign">
+                                        <header>
+                                            <field name="state" widget="statusbar" readonly="1"/>
+                                        </header>
+                                        <sheet>
+                                            <group>
+                                                <group>
+                                                    <field name="name" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                                    <field name="seq" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                                    <field name="deep_link_hash" invisible="1"/>
+                                                </group>
+                                                <group>
+                                                    <field name="user_ca_data_id" groups="base.group_erp_manager"
+                                                           attrs="{'readonly': [('state', '!=', 'draft')] }"
+                                                    />
+                                                    <field name="user_id" attrs="{'readonly': [('state', '!=', 'draft')] }" />
+                                                </group>
+                                            </group>
+                                            <notebook>
+                                                <!-- QR Challenge -->
+                                                <page string="Payload">
+                                                    <field name="payload"/>
+                                                </page>
+                                                <page string="QR" attrs="{'invisible':[('deep_link_hash','=',False)]}">
+                                                    <group>
+                                                        <field name="deep_link" readonly="1" widget="url"/>
+                                                    </group>
+                                                    <group>
+                                                        <field name="deep_link_html" nolabel="1" widget="html" readonly="1"/>
+                                                    </group>
+                                                </page>
+                                                <page string="Appearance" >
+                                                    <group>
+                                                        <group>
+                                                            <field name="template_id" readonly="1"/>
+                                                            <field name="width" attrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                                            <field name="height" aattrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                                        </group>
+                                                        <group>
+                                                            <field name="placeholder" attrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                                            <field name="page_box" attrs="{'readonly': [('state', 'not in', ['draft', 'request'])]}"/>
+                                                        </group>
+                                                    </group>
+                                                </page>
+                                            </notebook>
+                                        </sheet>
+                                    </form>
+                                </field>
+                            </page>
+                            <page string="Source">
+                                <group>
+                                    <group>
+                                        <field name="issuer" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                        <field name="source_sign" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                        <field name="source_application" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                        <field name="source_model" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                        <field name="source_res_id" attrs="{'readonly': [('state', '!=', 'draft')] }"/>
+                                    </group>
+                                </group>
+                            </page>
+                            <page string="Notes">
+                                <field name="notes" />
+                            </page>
+                            <page string="Lock" attrs="{'invisible': [('state', '=', 'draft')] }">
+                                <group>
+                                    <field name="pdf_lock_file" filename="pdf_lock_filename" readonly="1"/>
+                                    <field name="pdf_lock_filename" readonly="1"/>
+                                    <field name="pdf_lock_hash" readonly="1" />
+                                </group>
+                            </page>
+                            <!-- QR Challenge -->
+                            <page string="QR" attrs="{'invisible': [('state', '=', 'draft')] }">
+                                <group>
+                                    <field name="deep_link" readonly="1" widget="url"/>
+                                </group>
+                                <group>
+                                    <field name="deep_link_html" nolabel="1" widget="html" readonly="1"/>
+                                </group>
+                            </page>
+                            <page string="In Progress" attrs="{'invisible': [('state', '!=', 'request')] }">
+                                <field name="pre_signed_pdf" filename="signed_pdf_filename" readonly="1" widget="pdf_viewer"/>
+                            </page>
+                            <page string="Signed PDF" attrs="{'invisible': [('state', '!=', 'signed')] }">
+                                <group>
+                                    <field name="signed_pdf_filename" readonly="1"/>
+                                </group>
+                                <field name="signed_pdf" filename="signed_pdf_filename" readonly="1" widget="pdf_viewer"/>
+                            </page>
+                            <page string="Error">
+                                <field name="error_message" />
+                            </page>
+                        </notebook>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-    <record id="action_pdf_document" model="ir.actions.act_window">
-      <field name="name">PDF Documents</field>
-      <field name="res_model">pdf.document</field>
-      <field name="view_mode">tree,form</field>
-      <field name="help" type="html">
-        <p class="oe_view_nocontent_create">Create a new PDF document to be signed.</p>
-      </field>
-    </record>
-  </data>
+        <record id="action_pdf_document" model="ir.actions.act_window">
+            <field name="name">PDF Documents</field>
+            <field name="res_model">pdf.document</field>
+            <field name="view_mode">tree,form</field>
+            <field name="help" type="html">
+                <p class="oe_view_nocontent_create">Create a new PDF document to be signed.</p>
+            </field>
+        </record>
+    </data>
 </odoo>

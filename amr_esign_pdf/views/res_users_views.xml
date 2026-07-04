@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_users_form_inherit_user_ca_data" model="ir.ui.view">
+        <field name="name">res.users.form.user.ca.data</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//notebook" position="inside">
+
+                <page string="Digital Signature">
+
+                    <group>
+                        <field name="user_ca_data_default_id" options="{'no_create': True}"/>
+                    </group>
+
+                    <separator string="Certificates"/>
+                    <field name="user_ca_data_ids" context="{'default_user_id': active_id}">
+
+                        <tree editable="bottom">
+                            <field name="name"/>
+                            <field name="signature_scope"/>
+                            <field name="auto_signature"/>
+                            <field name="not_valid_before"/>
+                            <field name="not_valid_after"/>
+                        </tree>
+
+                        <form string="User Certificate">
+                            <sheet>
+
+                                <group>
+                                    <group>
+                                        <field name="name"/>
+                                        <field name="user_id" readonly="1"/>
+                                        <field name="signature_scope"/>
+                                        <field name="auto_signature"/>
+                                    </group>
+
+                                    <group>
+                                        <field name="not_valid_before"/>
+                                        <field name="not_valid_after"/>
+                                    </group>
+                                </group>
+
+                            </sheet>
+                        </form>
+
+                    </field>
+
+                </page>
+
+            </xpath>
+
+        </field>
+    </record>
+
+
+    <record id="view_users_profile_ca_data" model="ir.ui.view">
+        <field name="name">res.users.profile.ca.data</field>
+        <field name="model">res.users</field>
+        <field name="inherit_id" ref="base.view_users_form_simple_modif"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//group[@name='preference_contact']" position="after">
+                <group string="Digital Signature">
+                    <group>
+                        <field name="user_ca_data_default_id"
+                               options="{'no_create': True}"/>
+                    </group>
+                    <field name="user_ca_data_ids" context="{'default_user_id': active_id}">
+                        <tree>
+                            <field name="name"/>
+                            <field name="signature_scope"/>
+                            <field name="auto_signature"/>
+                            <field name="not_valid_after"/>
+                        </tree>
+                        <form>
+                            <sheet>
+                                <group>
+                                    <field name="name"/>
+                                    <field name="user_id" readonly="1"/>
+                                    <field name="signature_scope"/>
+                                    <field name="auto_signature"/>
+                                    <field name="not_valid_before"/>
+                                    <field name="not_valid_after"/>
+                                </group>
+                            </sheet>
+                        </form>
+                    </field>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>
