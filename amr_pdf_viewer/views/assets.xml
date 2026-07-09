@@ -1,0 +1,13 @@
+<odoo>
+
+    <template id="website_assets_frontend"
+          inherit_id="website.assets_frontend">
+
+    <xpath expr="." position="inside">
+        <script type="text/javascript" src="/amr_pdf_viewer/static/src/lib/pdfjs/pdf.min.js"/>
+        <script type="text/javascript" src="/amr_pdf_viewer/static/src/js/portal_pdf_viewer.js"/>
+    </xpath>
+
+</template>
+
+</odoo>
