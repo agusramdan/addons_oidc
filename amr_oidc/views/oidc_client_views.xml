@@ -22,7 +22,6 @@
                         <group>
                             <field name="client_id" />
                             <field name="client_email" />
-                            <field name="user_id" />
                         </group>
                     </group>
                     <notebook>
