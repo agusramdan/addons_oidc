@@ -1,0 +1,53 @@
+<template id="portal_pdf_viewer">
+
+    <t t-call="portal.portal_layout">
+
+        <div class="container mt32">
+
+            <div
+                class="amr_pdf_viewer"
+                t-att-data-url="'/my/pdf/%s' % document.id">
+
+                <div class="amr_toolbar">
+
+                    <button class="btn_prev">
+                        ◀
+                    </button>
+
+                    <span class="page_info">
+                        1 / 1
+                    </span>
+
+                    <button class="btn_next">
+                        ▶
+                    </button>
+
+                    <div class="flex-grow-1"/>
+
+                    <button class="btn_zoom_out">
+                        -
+                    </button>
+
+                    <span class="zoom_info">
+                        100%
+                    </span>
+
+                    <button class="btn_zoom_in">
+                        +
+                    </button>
+
+                </div>
+
+                <div class="pdf_container">
+
+                    <canvas/>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </t>
+
+</template>
