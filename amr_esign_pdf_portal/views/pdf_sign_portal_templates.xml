@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <template id="portal_pdf_sign">
+
+        <t t-call="website.layout">
+
+            <style>
+
+                body{
+                background:#f4f6f9;
+                }
+
+                .esign-navbar{
+                background:white;
+                height:72px;
+                box-shadow:0 2px 12px rgba(0,0,0,.08);
+                }
+
+                .esign-logo{
+                font-size:24px;
+                font-weight:600;
+                color:#1565C0;
+                }
+
+                .esign-card{
+                background:white;
+                border-radius:12px;
+                box-shadow:0 8px 24px rgba(0,0,0,.08);
+                }
+
+                .sidebar{
+                padding:24px;
+                border-left:1px solid #ececec;
+                height:100%;
+                }
+
+                .pdf-container{
+                background:#ddd;
+                min-height:850px;
+                border-radius:8px;
+                overflow:hidden;
+                }
+
+                .info-title{
+                color:#666;
+                font-size:13px;
+                margin-bottom:3px;
+                }
+
+                .info-value{
+                font-size:15px;
+                font-weight:600;
+                margin-bottom:15px;
+                }
+
+                .btn-sign{
+                height:48px;
+                font-size:17px;
+                font-weight:600;
+                }
+
+                .status-dot{
+                width:10px;
+                height:10px;
+                background:#28a745;
+                border-radius:50%;
+                display:inline-block;
+                margin-right:8px;
+                }
+
+            </style>
+
+            <nav class="navbar esign-navbar">
+
+                <div class="container-fluid">
+
+                    <span class="esign-logo">
+                        eSign
+                    </span>
+                    <span>
+                        Secure Digital Signature
+                    </span>
+                </div>
+
+            </nav>
+
+            <div class="container-fluid mt-4">
+
+                <div class="row">
+
+                    <div class="col-lg-9">
+
+                        <div class="esign-card p-3">
+                            <div
+                                    class="amr_pdf"
+                                    t-att-data-url="'/pdf/sign/%s/%s/preview' % (sign.deep_link_hash,sign.id)">
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="col-lg-3">
+
+                        <div class="esign-card sidebar">
+
+                            <h5>
+                                Sign Information
+                            </h5>
+
+                            <hr/>
+
+                            <div class="info-title">
+                                Signer
+                            </div>
+
+                            <div class="info-value">
+
+                                <t t-esc="sign.user_id.name"/>
+
+                            </div>
+
+                            <div class="info-title">
+                                Email
+                            </div>
+
+                            <div class="info-value">
+                                <t t-esc="sign.user_id.email"/>
+                            </div>
+
+                            <div class="info-title">
+                                Status
+                            </div>
+
+                            <div class="info-value">
+                                <span class="badge badge-warning" t-if="sign.state=='request'">
+                                    Waiting Signature
+                                </span>
+                                <span class="badge badge-success" t-if="sign.state=='signed'">
+                                    Signed
+                                </span>
+                                <span class="badge badge-secondary" t-if="sign.state=='draft'">
+                                    Draft
+                                </span>
+                                <span class="badge badge-danger" t-if="sign.state=='error'">
+                                    Error
+                                </span>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </t>
+
+    </template>
+
+
+</odoo>
