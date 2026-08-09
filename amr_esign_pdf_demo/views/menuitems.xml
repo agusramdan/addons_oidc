@@ -1,0 +1,7 @@
+<odoo>
+
+    <menuitem id="menu_sign" name="Demo" parent="amr_esign_pdf.menu_root"/>
+    <menuitem id="menu_pdf_document_amr_esign_pdf_demo" name="Documents Demo" parent="menu_sign"
+         action="amr_esign_pdf.action_pdf_document_demo" sequence="20"
+    />
+</odoo>
