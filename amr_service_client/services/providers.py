@@ -39,6 +39,12 @@ class AuthenticationProvider:
         raise UserError("Test Credential Not available.")
 
 
+class NoneAuthProvider(AuthenticationProvider):
+
+    def test_credential(self):
+        pass
+
+
 class ApiKeyProvider(AuthenticationProvider):
 
     def authenticate(self, request_context, audience=None):
@@ -321,7 +327,7 @@ class ServiceAccountProvider(ClientSecretProvider):
         return jwt.encode(payload, private_key, algorithm=algorithm, headers=headers, )
 
     def test_credential(self):
-        token= self._request_token()
+        token = self._request_token()
         _logger.debug(f"Credential token: {token}...")
         # self.env['amr.resource.helper'].decode(token['access_token'])
         return token

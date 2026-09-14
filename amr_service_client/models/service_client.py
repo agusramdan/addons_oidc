@@ -12,7 +12,6 @@ from uuid import UUID
 from odoo import api, fields, models, tools
 from odoo.exceptions import ValidationError
 from odoo.tools import config
-from urllib.parse import urlparse
 from odoo.fields import Datetime, Date
 from odoo.tools.safe_eval import safe_eval, test_python_expr
 
@@ -31,6 +30,16 @@ DEFAULT_PYTHON_CODE = """# Available variables:
 # headers = {...}
 # payload = {...}  
 
+
+\n\n\n\n
+"""
+
+DEFAULT_PYTHON_CODE_HANDLE = """# Available variables:
+#  - ctx: Odoo Environment on which the action is triggered
+#  - env: Odoo Environment on which the action is triggered
+#  - user: user 
+#  - records : Record
+#  - response
 
 \n\n\n\n
 """
@@ -119,7 +128,7 @@ class ServiceClientSend:
             active_log = True
             state = 'error'
             response_text = response.text if response else traceback.format_exc()
-            _logger.exception("error dispatch_send %s",response.text )
+            _logger.exception("error dispatch_send %s", response.text)
 
         if active_log:
             request_context.pop('headers', None)
@@ -141,7 +150,7 @@ class ServiceClient:
         self.credential_id = credential
         self.loader = env["service.credential.loader"]
         self.credential = self.loader.get_credential(credential or endpoint.credential_id)
-        self.credential_data = self.loader.load_credential(credential)
+        self.credential_data = self.loader.load_credential(credential) if self.credential else None
         self.provider = env["service.auth.factory"].create_service_auth(self.credential_data)
         self.path = path
         self.method = method
@@ -300,8 +309,9 @@ class ServiceClientFactory(models.Model):
     _name = 'service.client'
     _description = "Service Client"
 
-    active = fields.Boolean(default=True)
+    active = fields.Boolean(default=True, help="When unchecked, the rule is hidden and will not be executed.")
     name = fields.Char()
+    model_id = fields.Many2one('ir.model', string='Model', required=True, ondelete='cascade')
     endpoint_id = fields.Many2one("service.endpoint")
     credential_id = fields.Many2one("service.credential")
     active_log = fields.Boolean()
@@ -309,6 +319,13 @@ class ServiceClientFactory(models.Model):
         string='Python Code',
         default=DEFAULT_PYTHON_CODE,
         help="Write Python code that the action will execute. Some variables are "
+             "available for use; help about python expression is given in the help tab."
+    )
+
+    handle = fields.Text(
+        string='Python Code Handle',
+        default=DEFAULT_PYTHON_CODE_HANDLE,
+        help="Write Python code handle response that the action will execute. Some variables are "
              "available for use; help about python expression is given in the help tab."
     )
 
@@ -328,26 +345,46 @@ class ServiceClientFactory(models.Model):
             if msg:
                 raise ValidationError(msg)
 
-    def _run_action_code_multi(self, eval_context):
+    def _run_action_code(self, eval_context):
         safe_eval(self.code.strip(), eval_context, mode="exec", nocopy=True)  # nocopy allows to return 'action'
+        return eval_context
+
+    @api.constrains('handle')
+    def _check_python_handle(self):
+        for action in self.sudo().filtered('handle'):
+            msg = test_python_expr(expr=action.handle.strip(), mode="exec")
+            if msg:
+                raise ValidationError(msg)
+
+    def _run_action_handle(self, eval_context):
+        safe_eval(self.handle.strip(), eval_context, mode="exec", nocopy=True)  # nocopy allows to return 'action'
         return eval_context
 
     def send_request(self, records, callback=None):
         self.ensure_one()
         eval_context = self._get_eval_context()
         eval_context['records'] = records
-        eval_context = self._run_action_code_multi(eval_context)
+        eval_context = self.run_action_service_client(eval_context=eval_context)
+        response = eval_context.get('response')
+        if callback:
+            callback(response)
+        return response
+
+    def run_action_service_client(self, eval_context=None):
+        self.ensure_one()
+        eval_context_local = self._get_eval_context()
+        eval_context_local.update(eval_context or {})
+        eval_context = self._run_action_code(eval_context_local)
         path = eval_context.get('path') or None
         method = eval_context.get('method') or "POST"
         params = eval_context.get('params') or {}
         headers = eval_context.get('headers') or {}
         payload = eval_context.get('payload') or {}
-        # audience = eval_context.get('audience') or {}
         client = self.get_service_client(self.endpoint_id, credential=self.credential_id)
         response = client.call(method, path, params, payload, headers)
-        if callback:
-            callback(response)
-        return response
+        eval_context['response'] = response
+        eval_context = self._run_action_handle(eval_context)
+        return eval_context
 
     def _get_endpoint(self, code):
         if isinstance(code, int):

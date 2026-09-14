@@ -68,14 +68,13 @@ class ServiceEndpointMixin(models.AbstractModel):
             endpoint = False
             if "value" == rec.source:
                 url = rec.base_url_value
-            else:
-                if rec.config_param_name:
-                    if "env" == rec.source:
-                        url = os.getenv(rec.config_param_name)
-                    elif "config" == rec.source:
-                        url = config.get(rec.config_param_name)
-                    elif "config_parameter" == rec.source:
-                        url = rec.get_value_config_param(config_param_name=rec.config_param_name)
+            elif rec.config_param_name:
+                if "env" == rec.source:
+                    url = os.getenv(rec.config_param_name)
+                elif "config" == rec.source:
+                    url = config.get(rec.config_param_name)
+                elif "config_parameter" == rec.source:
+                    url = rec.get_value_config_param(config_param_name=rec.config_param_name)
             if url:
                 try:
                     parsed = urlparse(url)
@@ -88,8 +87,12 @@ class ServiceEndpointMixin(models.AbstractModel):
                     if parsed.scheme and parsed.netloc:
                         base_url = f"{parsed.scheme}://{parsed.netloc}"
                         endpoint = f"{parsed.scheme}://{parsed.netloc}{base_path}".rstrip("/")
+                    else:
+                        _logger.info("Parse url %s , %s ",url, parsed)
+                        endpoint = base_url = url
                 except:
-                    pass
+                    _logger.error("Parse url %s", url)
+                    endpoint = base_url = url
 
             rec.base_url, rec.url = base_url, endpoint
 
