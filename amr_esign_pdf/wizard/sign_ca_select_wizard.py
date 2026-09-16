@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import json
 from datetime import datetime, timedelta
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -20,6 +21,7 @@ class UserCaDataWizard(models.TransientModel):
     user_ca_id = fields.Many2one('user.ca.data', 'User CA', required=True, domain="[('user_id', '=', user_id)]")
     password = fields.Char()
     signature_pdf = fields.Binary(string="Signature Pdf")
+    notes = fields.Text()
 
     @api.model
     def default_get(self, fields_list):
@@ -44,6 +46,15 @@ class UserCaDataWizard(models.TransientModel):
             )
         except Exception as e:
             raise UserError(str(e))
+
+        payload = {
+            'approval': {
+                'notes': self.notes,
+            }
+        }
+        self.pdf_sign_id.sudo().write({
+            'payload': json.dumps(payload),
+        })
         self.pdf_sign_id.sign_pdf_using(
             self.user_ca_id, password=self.password or None, signature_pdf=self.signature_pdf
         )

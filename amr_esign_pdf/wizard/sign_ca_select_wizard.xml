@@ -6,26 +6,16 @@
             <field name="arch" type="xml">
                 <form string="Select Certificate Authority (CA)">
                     <group>
-                        <field name="user_ca_id"
-                               options="{'no_create': True, 'no_open': True}"
-                        />
+                        <field name="user_ca_id" options="{'no_create': True, 'no_open': True}"/>
                         <field name="password"/>
                         <field name="pdf_sign_id" invisible="1"/>
                         <field name="user_id" readonly="1"/>
                         <field name="signature_pdf"/>
+                        <field name="notes"/>
                     </group>
-
                     <footer>
-                        <button name="action_sign_pdf"
-                                string="Sign"
-                                type="object"
-                                class="btn-primary"
-                        />
-
-                        <button string="Cancel"
-                                special="cancel"
-                                class="btn-secondary"
-                        />
+                        <button name="action_sign_pdf" string="Sign" type="object" class="btn-primary" />
+                        <button string="Cancel" special="cancel" class="btn-secondary"/>
                     </footer>
                 </form>
             </field>

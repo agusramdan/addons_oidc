@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import base64
-
+import json
 import binascii
 import io
 import uuid
@@ -180,8 +180,11 @@ class PdfSignTemplate(models.Model):
     )
     offset_x = fields.Float(default=0)
     offset_y = fields.Float(default=0)
-    width = fields.Float(default=180)
-    height = fields.Float(default=70)
+    width = fields.Float("Width (pt)", default=180, )
+    height = fields.Float("Height (pt)", default=70, )
+    width_mm = fields.Float("Width (mm)", compute="_compute_size_mm", store=True, )
+    height_mm = fields.Float("Height (mm)", compute="_compute_size_mm", store=True, )
+    border_width = fields.Float("Border Width (pt)", default=0, )
     template_type = fields.Selection([
         ("signature", "Signature"),
         ("stamp", "Stamp"),
@@ -202,6 +205,16 @@ class PdfSignTemplate(models.Model):
         domain=[("type", "=", "qweb")],
         string="QWeb Template"
     )
+    report_id = fields.Many2one(
+        "ir.actions.report",
+        string="Report",
+        readonly=True
+    )
+    paper_format_id = fields.Many2one(
+        "report.paperformat",
+        string="Paper Format",
+        readonly=True
+    )
     qr_position = fields.Selection([
         ("LEFT_OF_TEXT", "LEFT_OF_TEXT"),
         ("RIGHT_OF_TEXT", "RIGHT_OF_TEXT"),
@@ -210,7 +223,7 @@ class PdfSignTemplate(models.Model):
     ], default="LEFT_OF_TEXT", )
 
     text_template = fields.Text(
-        default="Ditanda tangani secara digital\n\n"
+        default="Ditandatangani secara digital\n\n"
                 "%(signer_name)s \n"
                 "Timestamp: %(ts)s \n"
                 "Scan QR untuk verifikasi\n"
@@ -225,6 +238,91 @@ class PdfSignTemplate(models.Model):
     )
 
     notes = fields.Text()
+
+    @api.depends("width", "height")
+    def _compute_size_mm(self):
+        factor = 25.4 / 72.0
+        for record in self:
+            record.width_mm = record.width * factor
+            record.height_mm = record.height * factor
+
+    @api.model
+    def pdf_pt_to_mm(self, value):
+        return value * 25.4 / 72.0
+
+    @api.model
+    def pdf_mm_to_pt(self, value):
+        return value * 72.0 / 25.4
+
+    def _create_paper_format(self):
+        self.ensure_one()
+        vals = {
+            "name": "PDF Sign - Paper Format - %s" % self.name,
+            "format": "custom",
+            "page_width": self.pdf_pt_to_mm(self.width),
+            "page_height": self.pdf_pt_to_mm(self.height),
+            "orientation": "Portrait",
+            "margin_top": 0,
+            "margin_bottom": 0,
+            "margin_left": 0,
+            "margin_right": 0,
+            "header_line": False,
+            "dpi": 96,
+        }
+        paper_format_id = self.paper_format_id
+        if paper_format_id:
+            paper_format_id.write(vals)
+        else:
+            paper_format_id = self.env["report.paperformat"].create(vals)
+            self.write({
+                'paper_format_id': paper_format_id.id
+            })
+        return paper_format_id
+
+    def _create_report(self):
+        self.ensure_one()
+
+        paper_format = self._create_paper_format()
+
+        vals = {
+            "name": "PDF Sign - Report - %s" % self.name,
+            "model": "pdf.sign.data",
+            "report_type": "qweb-pdf",
+            "report_name": self.qweb_view_id.key,
+            "report_file": self.qweb_view_id.key,
+            "paperformat_id": paper_format.id,
+        }
+        report_id = self.report_id
+        if self.report_id:
+            report_id.write(vals)
+        else:
+            report_id = self.env["ir.actions.report"].create(vals)
+            self.write({
+                'report_id':report_id.id
+            })
+
+        return report_id
+
+    def write(self, vals):
+        res = super(PdfSignTemplate, self).write(vals)
+
+        if {"width", "height", "qweb_view_id"}.intersection(vals):
+            for record in self:
+                if record.qweb_view_id:
+                    record.sudo()._create_report()
+
+        return res
+
+    def unlink(self):
+        reports = self.mapped("report_id")
+        paper_formats = self.mapped("paper_format_id")
+
+        res = super(PdfSignTemplate, self).unlink()
+
+        reports.unlink()
+        paper_formats.unlink()
+
+        return res
 
     def render(self, context):
         """
@@ -370,14 +468,7 @@ context = {
             return render_stamp(pdf_bytes, values)
 
         elif self.renderer == "qweb":
-            html = self.env["ir.qweb"]._render(
-                self.qweb_view_id.id,
-                context,
-            )
-            pdf = self.env["ir.actions.report"]._run_wkhtmltopdf(
-                [html],
-            )
-            return pdf
+            return self.generate_pdf_binary(render_data=context)
 
         raise UserError(_("Unknown renderer '%s'.") % self.renderer)
 
@@ -389,20 +480,21 @@ context = {
         if self:
             if self.renderer != "text":
                 pdf_bytes = self.render_pdf(appearance_text_params)
-                return StaticStampStyle(
-                    background=ImportedPdfBytes(pdf_bytes)
-                )
+                return self.create_pdf_stamp_style(pdf_bytes)
             elif self.text_template:
                 stamp_text = self.text_template
         qr_position = qr_position_map[self.qr_position or 'LEFT_OF_TEXT']
         return QRStampStyle(
+            border_width=self.border_width,
             stamp_text=stamp_text,
             qr_position=qr_position,
         )
 
     def create_pdf_stamp_style(self, pdf_bytes):
-        return StaticStampStyle(background=ImportedPdfBytes(
-            pdf_bytes, width=self.width,height=self.height, ))
+        return StaticStampStyle(
+            border_width=self.border_width,
+            background=ImportedPdfBytes(pdf_bytes, width=self.width, height=self.height, )
+        )
 
     def create_signature_stamp(self, signature_pdf_b64):
 
@@ -426,3 +518,43 @@ context = {
                 inner_content_scaling=InnerScaling.SHRINK_TO_FIT,
             ),
         )
+
+    def generate_pdf_binary(self, render_data=None):
+        self.ensure_one()
+
+        if not self.qweb_view_id:
+            raise UserError("QWeb Template belum ditentukan.")
+
+        if not self.report_id:
+            self.sudo()._create_report()
+
+        render_data = render_data or {}
+        qr = render_data.pop("qr",None) or {}
+        url = qr.get('value') or render_data.get('url')
+        if not qr.get('image') and url:
+            qr['image']=self.env['deep.link.mixin'].generate_qr_base64(url)
+        render_data.setdefault('qr',qr)
+        doc = self.env["pdf.sign.data"].create({
+            "template_id": self.id,
+            "data_json": json.dumps(
+                render_data,
+                ensure_ascii=False,
+            ),
+        })
+        pdf_binary, content_type = self.report_id.render_qweb_pdf(doc.ids)
+
+        return pdf_binary
+
+    def action_open_sign_preview_wizard(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Qweb Sign Preview',
+            'res_model': 'pdf.sign.preview.wizard',
+            'view_mode': 'form',
+            'target': 'new',
+            'context': {
+                'default_template_id': self.id,
+                'default_user_id': self.env.user.id,
+            }
+        }

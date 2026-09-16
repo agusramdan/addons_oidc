@@ -23,6 +23,10 @@
             <form string="PDF Signature Template">
                 <header>
                     <field name="active" invisible="1"/>
+                    <button name="action_open_sign_preview_wizard" string="Preview"
+                            type="object" class="btn-primary"
+                            attrs="{'invisible':[('renderer','!=','qweb')]}"
+                    />
                 </header>
                 <sheet>
 
@@ -42,6 +46,7 @@
                         </group>
 
                         <group>
+                            <field name="border_width"/>
                             <field name="width"/>
                             <field name="height"/>
                         </group>
@@ -59,10 +64,14 @@
 
                             <group attrs="{'invisible':[('renderer','!=','qweb')]}">
                                 <field name="qweb_view_id" attrs="{'required':[('renderer','=','qweb')]}"/>
+                                <field name="report_id" groups="base.group_no_one"/>
+                                <field name="paper_format_id" groups="base.group_no_one"/>
                             </group>
+
                             <group attrs="{'invisible':[('renderer','!=','text')]}">
                                 <field name="qr_position" attrs="{'required':[('renderer','=','text')]}"/>
                             </group>
+
                             <group attrs="{'invisible':[('renderer','!=','text')]}">
                                 <field name="text_template" nolabel="1" attrs="{'required':[('renderer','=','text')]}"/>
                             </group>

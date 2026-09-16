@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-
+import base64
+import qrcode
 import json
 
+from io import BytesIO
 from odoo import _, api, fields, models
 
 
@@ -20,6 +22,26 @@ class DeepLink(models.AbstractModel):
         'Payload',
         help="Payload for deep link, can be used to identify the document or signature (appearance_text_params)"
     )
+
+    @api.model
+    def generate_qr(self, deep_link, version=2, box_size=10, border=1, format='PNG'):
+        qr = qrcode.QRCode(
+            version=version,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=box_size,
+            border=border
+        )
+        qr.add_data(deep_link)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buffer = BytesIO()
+        img.save(buffer, format=format)
+        return buffer.getvalue()
+
+    @api.model
+    def generate_qr_base64(self,deep_link,box_size=10):
+        b_value = self.generate_qr(deep_link,box_size=box_size)
+        return base64.b64encode(b_value).decode("ascii")
 
     @api.model
     def get_field_mapping(self):

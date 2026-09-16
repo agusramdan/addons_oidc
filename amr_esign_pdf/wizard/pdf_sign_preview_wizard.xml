@@ -1,0 +1,29 @@
+<odoo>
+    <data>
+        <record id="view_pdf_sign_preview_wizard_form" model="ir.ui.view">
+            <field name="name">pdf.sign.preview.wizard.form</field>
+            <field name="model">pdf.sign.preview.wizard</field>
+            <field name="arch" type="xml">
+                <form string="Preview PDF">
+                    <group>
+                        <field name="template_id" />
+                        <field name="data_json"/>
+                        <field name="pdf_file" filename="pdf_filename"/>
+                        <field name="pdf_filename"/>
+                    </group>
+                    <footer>
+                        <button string="Generate PDF Preview" type="object" name="action_generate" class="btn-primary"/>
+                        <button string="Close" special="cancel" />
+                    </footer>
+                </form>
+            </field>
+        </record>
+
+        <record id="action_pdf_sign_preview_wizard" model="ir.actions.act_window">
+            <field name="name">Pdf Sign Preview</field>
+            <field name="res_model">pdf.sign.preview.wizard</field>
+            <field name="view_mode">form</field>
+            <field name="target">new</field>
+        </record>
+    </data>
+</odoo>

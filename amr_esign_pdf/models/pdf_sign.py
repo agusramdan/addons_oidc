@@ -6,22 +6,17 @@ import fitz
 import logging
 from io import BytesIO
 
-from pyhanko.pdf_utils.content import RawContent
 from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.sign.fields import enumerate_sig_fields
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
-from pyhanko.stamp import StaticStampStyle
 from pyhanko.sign import signers as ph_signers
 from pyhanko.sign.signers import PdfSignatureMetadata
 from pyhanko.sign.signers.cms_embedder import SigAppearanceSetup
 from pyhanko.sign.fields import SigFieldSpec, append_signature_field
+
 from odoo import api, fields, models, _
 from odoo.exceptions import UserError, ValidationError
-import base64
-import io
 
-from pyhanko.pdf_utils.reader import PdfFileReader
-from pyhanko.stamp import StaticStampStyle
 _logger = logging.getLogger(__name__)
 
 _original_apply = SigAppearanceSetup.apply
@@ -142,6 +137,8 @@ class PdfSign(models.Model):
     signed_pdf = fields.Binary('Signed PDF', readonly=True)
     signed_pdf_filename = fields.Char('Signed PDF Filename', readonly=True)
 
+    signature_pdf = fields.Binary('Signature PDF', readonly=True, help="Signature PDF")
+
     @api.onchange('user_ca_data_id')
     def _onchange_user_ca_data_id(self):
         if self.user_ca_data_id.user_id:
@@ -167,10 +164,27 @@ class PdfSign(models.Model):
         else:
             appearance_text_params = {}
 
-        appearance_text_params.update(
-            url=sign.deep_link,
-            signer_name=sign.user_ca_data_id.name,
-        )
+        qr = appearance_text_params.pop('qr', None) or {}
+        qr.setdefault('value', sign.deep_link)
+        appearance_text_params.setdefault('url', qr.get('value'))
+        if 'image' not in qr:
+            qr['image'] = sign.generate_qr_base64(qr.get('value'))
+
+        signer = appearance_text_params.pop('signer',None) or {}
+        signer.setdefault('name',sign.user_ca_data_id.name)
+        appearance_text_params.setdefault('signer_name', signer.get('name'))
+
+        company = appearance_text_params.pop('company',None) or {}
+        company.setdefault('name', sign.company_id.name)
+
+        signature = appearance_text_params.pop('signature',None) or {}
+        signature.setdefault('date',fields.Datetime.now().strftime("%Y-%m-%dT%H:%M:%S UTC"))
+
+        appearance_text_params['company'] = company
+        appearance_text_params['signer'] = signer
+        appearance_text_params['signature'] = signature
+        appearance_text_params['qr'] = qr
+
         return appearance_text_params
 
     def prepare_signature_field_pdf(self, pdf_bytes):
@@ -276,11 +290,11 @@ class PdfSign(models.Model):
             if signature_dict["signed"]:
                 continue
             sign.state = 'request'
-
             signature_meta = PdfSignatureMetadata(field_name=sig_name, name=sig_name)
             signer = sign.get_signer(password=password)
-            appearance_text_params = sign.get_appearance_text_params()
-            signature_pdf_b64 = kwargs.get('signature_pdf')
+            appearance_text_params = dict(kwargs)
+            appearance_text_params.update(sign.get_appearance_text_params() or {})
+            signature_pdf_b64 = kwargs.get('signature_pdf') or sign.signature_pdf
             if signature_pdf_b64:
                 stamp_style = sign.template_id.create_signature_stamp(signature_pdf_b64)
             else:

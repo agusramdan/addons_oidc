@@ -2,6 +2,7 @@
 
 from . import deep_link
 from . import pdf_sign_template
+from . import pdf_sign_data
 from . import user_ca_data
 from . import pdf_document
 from . import pdf_sign

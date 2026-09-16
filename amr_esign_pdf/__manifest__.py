@@ -24,6 +24,8 @@
         'wizard/user_ca_data_wizard.xml',
         'wizard/sign_ca_select_wizard.xml',
         'wizard/pdf_verify_wizard.xml',
+        'wizard/pdf_sign_preview_wizard.xml',
+
         'views/menuitems.xml',
         'views/pdf_document_demo_views.xml',
     ],
