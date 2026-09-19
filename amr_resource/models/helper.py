@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import requests
 import re
+import requests
 
 from odoo import api, models
 from odoo.http import request
@@ -157,14 +157,22 @@ class ResourceHelper(models.AbstractModel):
     def get_user_match(self, validation):
         email = validation.get('email')
         if email:
-            return self.sudo().env['res.users'].search([('email', '=', email)], limit=1)
+            user = self.sudo().env['res.users'].search(['|', ('login', '=', email), ('email', '=', email)], limit=1)
+            if user:
+                return user
+
         sub = validation.get('sub')
         if sub:
-            return self.sudo().env['res.users'].search([('login', '=', sub)], limit=1)
+            user = self.sudo().env['res.users'].search([('login', '=', sub)], limit=1)
+            if user:
+                return user
+
         if 'machine' == validation.get('type'):
-            return self.sudo().env['res.users'].search(
-                [('active', 'in', [True, False]), '|', ('login', '=', sub), ('email', '=', email), ], limit=1
+            user = self.sudo().env['res.users'].search(
+                [('active', 'in', [True, False]), '|', ('login', '=', sub), ('email', '=', email)], limit=1
             )
+            if user:
+                return user
         return None
 
     @api.model

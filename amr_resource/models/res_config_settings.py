@@ -47,6 +47,11 @@ class ResConfigSettings(models.TransientModel):
     module_amr_approval_task_client = fields.Boolean("Approval Task Client")
     module_amr_notification_client = fields.Boolean("Notification Client")
 
+    # Integration/Connection to other system
+    module_amr_service_client = fields.Boolean("Service Client")
+    module_amr_data_push = fields.Boolean("Data Event Push")
+    module_amr_data_sync = fields.Boolean("Data Sync")
+
     @api.depends('amr_select_issuer')
     def _compute_resource_issuer(self):
         for record in self:

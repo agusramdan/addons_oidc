@@ -79,10 +79,10 @@ class RedirectController(Controller):
                         return self.invalid_response(400, "invalid type_url", "get_public_url not found")
 
         if not result and url:
-            if url_type == ['auto_login', 'access_token']:
+            if url_type in ['auto_login', 'access_token']:
                 access_url = request.env.user.add_url_access_token(url, url_type=url_type)
             else:
-                return self.invalid_response(400, "invalid type", " accept only auto_login or access_token")
+                return self.invalid_response(400, "invalid type", "type[%s] accept only auto_login or access_token" % url_type)
             result = {
                 'url': url,
                 'url_access_token': access_url,
