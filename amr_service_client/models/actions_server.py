@@ -33,9 +33,4 @@ class ServerActions(models.Model):
         # TDE CLEANME: when going to new api with server action, remove action
         if not action.service_client_id or self._is_recompute(action):
             return False
-
-        records = eval_context.get('records') or eval_context.get('record')
-        if not records:
-            return False
-
         return action.service_client_id.run_action_service_client(eval_context=eval_context)

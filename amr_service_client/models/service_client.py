@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import base64
 import json
 import logging
+import random
+import re
 import requests
-import base64
 import traceback
 
 from datetime import date, datetime, timedelta
@@ -18,7 +20,7 @@ from odoo.tools.safe_eval import safe_eval, test_python_expr
 _logger = logging.getLogger(__name__)
 
 DEFAULT_PYTHON_CODE = """# Available variables:
-#  - ctx: Odoo Environment on which the action is triggered
+#  - ctx: Odoo Context on which the action is triggered
 #  - env: Odoo Environment on which the action is triggered
 #  - user: user 
 #  - records : Record
@@ -35,12 +37,24 @@ DEFAULT_PYTHON_CODE = """# Available variables:
 """
 
 DEFAULT_PYTHON_CODE_HANDLE = """# Available variables:
-#  - ctx: Odoo Environment on which the action is triggered
+#  - ctx: Odoo Context on which the action is triggered
 #  - env: Odoo Environment on which the action is triggered
 #  - user: user 
 #  - records : Record
 #  - response
 
+\n\n\n\n
+"""
+
+DEFAULT_INTERATION_CONTEXT_CODE = """# Available variables:
+#  - ctx: Odoo Context on which the action is triggered
+#  - env: Odoo Environment on which the action is triggered
+#  - user: user 
+#  - records : Record
+#  - response 
+#
+#  response = [{'notification_to_user': user} for user in ctx.get('notification_to_users', [])]
+response = [{}]
 \n\n\n\n
 """
 
@@ -315,6 +329,19 @@ class ServiceClientFactory(models.Model):
     endpoint_id = fields.Many2one("service.endpoint")
     credential_id = fields.Many2one("service.credential")
     active_log = fields.Boolean()
+    each_record = fields.Boolean(
+        string="Each Record",
+        default=False,
+        help="If checked, the action will be executed for each record in the recordset."
+    )
+    iteration = fields.Text(
+        "Iteration Context",
+        default=DEFAULT_INTERATION_CONTEXT_CODE,
+        help="Expression returning the interation context"
+            "This context will be available in the python code as"
+            "ctx.get('iteration')."
+    )
+
     code = fields.Text(
         string='Python Code',
         default=DEFAULT_PYTHON_CODE,
@@ -328,6 +355,7 @@ class ServiceClientFactory(models.Model):
         help="Write Python code handle response that the action will execute. Some variables are "
              "available for use; help about python expression is given in the help tab."
     )
+    payload_ids = fields.One2many('service.client.payload', 'service_client_id')
 
     @api.model
     def _get_eval_context(self):
@@ -337,6 +365,17 @@ class ServiceClientFactory(models.Model):
             'env': self.env,
             'user': self.env.user,
         }
+
+    @api.constrains('iteration')
+    def _check_python_iteration(self):
+        for action in self.sudo().filtered('iteration'):
+            msg = test_python_expr(expr=action.iteration.strip(), mode="exec")
+            if msg:
+                raise ValidationError(msg)
+
+    def _run_action_iteration(self, eval_context):
+        safe_eval(self.iteration.strip(), eval_context, mode="exec", nocopy=True)  # nocopy allows to return 'action'
+        return eval_context
 
     @api.constrains('code')
     def _check_python_code(self):
@@ -360,31 +399,50 @@ class ServiceClientFactory(models.Model):
         safe_eval(self.handle.strip(), eval_context, mode="exec", nocopy=True)  # nocopy allows to return 'action'
         return eval_context
 
-    def send_request(self, records, callback=None):
+    def send_request(self, records):
         self.ensure_one()
         eval_context = self._get_eval_context()
         eval_context['records'] = records
-        eval_context = self.run_action_service_client(eval_context=eval_context)
-        response = eval_context.get('response')
-        if callback:
-            callback(response)
-        return response
+        self.run_action_service_client(eval_context=eval_context)
 
     def run_action_service_client(self, eval_context=None):
         self.ensure_one()
-        eval_context_local = self._get_eval_context()
-        eval_context_local.update(eval_context or {})
-        eval_context = self._run_action_code(eval_context_local)
-        path = eval_context.get('path') or None
-        method = eval_context.get('method') or "POST"
-        params = eval_context.get('params') or {}
-        headers = eval_context.get('headers') or {}
-        payload = eval_context.get('payload') or {}
-        client = self.get_service_client(self.endpoint_id, credential=self.credential_id)
-        response = client.call(method, path, params, payload, headers)
-        eval_context['response'] = response
-        eval_context = self._run_action_handle(eval_context)
-        return eval_context
+        action = None
+        def call_records(records):
+            eval_context_local = {}
+            eval_interation_context = self._get_eval_context()
+            eval_interation_context = self._run_action_iteration(eval_interation_context)
+            for int_ctx in eval_interation_context.get('response', []):
+                eval_context_local = self._get_eval_context()
+                ctx = eval_interation_context.get('ctx', {})
+                int_ctx = int_ctx or {}
+                ctx.update(int_ctx)
+                eval_context_local.update(eval_context or {})
+                eval_context_local['ctx'] = ctx
+                record = eval_context_local.get('record')
+                if record and record != records:
+                    eval_context_local['record'] = record.with_context(ctx)
+                eval_context_local['records'] = records.with_context(ctx)
+                eval_context_local['payload'] = self.payload_ids.get_payload(eval_context_local)
+                eval_context_local = self._run_action_code(eval_context_local)
+                path = eval_context_local.get('path') or None
+                method = eval_context_local.get('method') or "POST"
+                params = eval_context_local.get('params') or {}
+                headers = eval_context_local.get('headers') or {}
+                payload = eval_context_local.get('payload') or {}
+                client = self.get_service_client(self.endpoint_id, credential=self.credential_id)
+                response = client.call(method, path, params, payload, headers)
+                eval_context['response'] = response
+                eval_context_local = self._run_action_handle(eval_context_local)
+            return eval_context_local
+        if 'action' in eval_context:
+            action = eval_context['action']
+        if self.each_record:
+            for rec in eval_context['records']:
+                call_records(rec)
+        else:
+            call_records(eval_context['records'])
+        return action
 
     def _get_endpoint(self, code):
         if isinstance(code, int):
@@ -440,3 +498,47 @@ class ServiceClientFactory(models.Model):
             service=service, method="DELETE", path=path, headers=headers,
             credential=credential, audience=audience
         )
+
+
+class ServiceClientPayload(models.Model):
+    _name = 'service.client.payload'
+
+    key = fields.Char('Key')
+    value = fields.Text('Value')
+    type = fields.Selection([
+        ('fix', 'Fixed Value'),
+        ('exp', 'Expression'),
+        ('random_int', 'Random Integer'),
+    ], 'Type', default="fix")
+    service_client_id = fields.Many2one('service.client')
+
+    def get_type_display(self):
+        labels = {'fix': 'Fixed', 'record': 'Expression', 'random_int': 'Random Int'}
+        return labels.get(self.type, self.type or '')
+
+    @api.model
+    def custom_render(self, template_str, context):
+        pattern = re.compile(r'\${(.*?)}')
+        def replacer(match):
+            expr = match.group(1)
+            try:
+                return str(safe_eval(expr, context))
+            except Exception as e:
+                _logger.error("Error rendering expression '%s': %s", expr, e)
+                return ''
+        return pattern.sub(replacer, template_str)
+
+    def get_payload(self,context=None):
+        payload = {}
+        for param in self:
+            if param.type == 'fix':
+                value = param.value
+            elif param.type == 'exp':
+                if '${' in param.value:
+                    value = self.custom_render(param.value, context)
+                else:
+                    value = safe_eval(param.value, context)
+            elif param.type == 'random_int':
+                value = random.randint(0, int(param.value) if param.value.isdigit() else 1000)
+            payload[param.key] = value
+        return payload
