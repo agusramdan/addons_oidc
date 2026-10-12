@@ -1,96 +1,119 @@
-# Modul `amr_resource`
+# Modul `amr_resource` — Resource Server OIDC
+
+> **Peran dalam suite:** Addon **dasar** OIDC yang mengubah Odoo menjadi **Resource Server** — menerima & memvalidasi *access token* (JWT / opaque) sebelum resource dilayani. Semua modul lain (`amr_data_sync`, `amr_service_client`, controller API custom) berpijak pada helper modul ini.
+
+| | |
+|---|---|
+| Versi | 13.0.0.0.8 |
+| Depends | `base`, `web`, `base_setup` |
+| Maintainer | Agus Muhammad Ramdan |
+| Status migrasi 20 | Belum dimulai |
+
+---
 
 ## Untuk Developer
 
 ### 1. Arsitektur
-Modul `amr_resource` adalah fondasi dasar (core resource server) untuk mengamankan dan memvalidasi akses resource Odoo melalui JSON Web Token (JWT) atau token introspeksi OAuth2/OIDC. Modul ini memperluas `ir.http` untuk menyediakan mekanisme autentikasi kustom berbasis token, serta menyediakan helper methods bagi modul-modul lain (seperti `amr_data_sync`, `amr_service_client`, dll) untuk melakukan validasi token dan komunikasi antar service.
 
-### 2. Model, Field, dan Relasi
-- **`amr.resource.helper`** (AbstractModel):
-  - Berisi method utilitas untuk manajemen token, verifikasi issuer, audience, integrasi dengan OIDC endpoint (`/.well-known/openid-configuration`, `/.well-known/jwks.json`), validasi token HS/RS, serta pencocokan user (`res.users`).
-- **`res.users`** (Model Extension):
-  - Menambahkan method pengecekan grup/peran (`is_user_machine`, `is_user_technical`, `is_user_business`, `is_user_allow_create_token`).
-  - Menambahkan method `decode`, `with_access_token_context`, dll.
-- **`res.config.settings`** (TransientModel Extension):
-  - Menyediakan konfigurasi parameter sistem (`amr_resource.issuer`, `amr_resource.audience`, `web.base.url.freeze`, serta toggles untuk modul-modul `amr_*` lainnya).
-- **`create.user.wizard`** (TransientModel):
-  - Wizard untuk membuat user baru berdasarkan template user yang sudah ada (menyalin grup dan atribut `share`).
+Modul menempel pada 3 titik Odoo:
+
+```
+┌─────────────────────────────────────────────────────┐
+│ ir.http (AbstractModel, _inherit)                   │
+│  → auth_method 'machine': Bearer token di-          │
+│    extract → amr.resource.helper.validate() →       │
+│    get_user_match() → session dibuat (set_session)  │
+├─────────────────────────────────────────────────────┤
+│ amr.resource.helper (AbstractModel)                 │
+│  → inti validasi: decode/introspect, jwks, issuer,  │
+│    audience, user matching                          │
+├─────────────────────────────────────────────────────┤
+│ res.config.settings (res.users extension)           │
+│  → konfigurasi issuer/audience, grup machine/       │
+│    technical/business, wizard create user           │
+└─────────────────────────────────────────────────────┘
+```
+
+Controller API cukup mendeklarasikan `auth='machine'` — `ir.http` otomatis memvalidasi token sebelum request masuk.
+
+### 2. Model & Method Inti (`models/helper.py` — `amr.resource.helper`)
+
+**Konfigurasi (ir.config_parameter):**
+- `amr_resource.issuer` — issuer OIDC (default: `web.base.url`)
+- `amr_resource.audience` — audience yang diterima
+
+**Discovery & keys:**
+- `get_oidc_config(issuer)` → fetch `/.well-known/openid-configuration`
+- `get_jwks_data(issuer)` → fetch `/.well-known/jwks.json`
+
+**Token lifecycle:**
+
+| Method | Fungsi |
+|---|---|
+| `generate_token(client_id, client_secret, issuer, **kw)` | POST ke `token_endpoint` IdP → access token (client-credentials) |
+| `encode(**kw)` | shortcut `generate_token()['access_token']` |
+| `decode(token)` | alias `validate(token)` |
+| `is_local_token(token)` | cek apakah `iss` == `web.base.url` |
+| `validate_hs(token)` | HS-signed → **introspection endpoint** (butuh `active: true`) |
+| `validate(token)` | RS-signed → PyJWKClient ambil signing key dari `jwks_uri` → `jwt.decode(alg, issuer, audience)` |
+
+**User matching (`get_user_match`)** — urutan pencarian `res.users`:
+1. `email` → `login` ATAU `email`
+2. `sub` → `login`
+3. token `type=machine` → cari termasuk user non-aktif
+
+**Ekstraksi token dari request (`get_param_token` / `get_header_token` / `get_bearer_token`):**
+- header `Authorization: Bearer <token>` (RFC 6750)
+- header `access_token` / `token`
+- query/form: `access_token`, `token`, `token_access`
 
 ### 3. Cara Modul Lain Memakainya
-Modul seperti `amr_data_sync` dan service client bergantung penuh pada `amr_resource`.
-Contoh pemanggilan helper dari modul lain:
+
 ```python
-# Validasi token secara programatik
+# Validasi token → payload claims
 payload = self.env['amr.resource.helper'].validate(token)
+
+# Payload → uid (user matching)
 uid = self.env['amr.resource.helper'].get_uid(payload)
-```
-Atau menggunakan auth method di Controller:
-```python
-@route('/api/v1/endpoint', type='http', auth='machine', methods=['POST'], csrf=False)
-def my_api(self, **kwargs):
-    # request.uid dan request.jwt_payload otomatis di-set oleh _auth_method_machine
-    pass
-```
 
-### 4. API / Method Publik
-- **`amr.resource.helper`**:
-  - `validate(token)`: Memvalidasi JWT (mendukung algoritma HS via introspection atau RS via JWKS).
-  - `get_user_match(validation)`: Mencocokkan payload token dengan `res.users` berdasarkan email atau login (`sub`).
-  - `get_bearer_token()`: Mengambil token dari header `Authorization: Bearer <token>`.
-- **Controllers (`RedirectController`, `JsonRpcApi`)**:
-  - `/redirect`: Redirect ke URL dengan menyertakan token akses.
-  - `/api/v1/access_token/url`: Endpoint untuk menghasilkan URL akses dengan token.
-  - `/api/test/connection/machine`: Endpoint tes koneksi dengan auth method `machine`.
-  - `/api/dataset/call_kw`: JSON-RPC endpoint yang diamankan dengan auth `machine` untuk pemanggilan method model secara jarak jauh.
+# Controller: cukup pakai auth='machine' (ir.http menangani)
+@route('/api/v1/endpoint', type='http', auth='machine', csrf=False)
+def my_api(self, **kw): ...
 
-### 5. Koneksi & Autentikasi Antar Service
-- Menggunakan skema autentikasi HTTP Bearer Token (`auth='machine'` atau `auth='user_or_param'`).
-- Memvalidasi token dengan melakukan introspeksi ke token endpoint atau verifikasi cryptographic menggunakan Public Keys (JWKS) dari OIDC Provider.
-
-### 6. Error Handling
-- Didefinisikan di `exceptions.py` dengan class `APIException` dan helper `handle_exception(e)` yang mengembalikan respons JSON standar berisi `error` dan `error_description` beserta status HTTP yang sesuai (misal: 400, 401, 500).
-
-### 7. Contoh Kode Nyata dari Repo
-Penggunaan auth method `machine` pada `ir.http.py`:
-```python
-@classmethod
-def _auth_method_machine(cls):
-    helper = request.env['amr.resource.helper'].sudo()
-    token = helper.get_bearer_token()
-    validate = helper.get_validate_user(token)
-    if not validate:
-        raise Unauthorized('Invalid token')
-    user = helper.get_user_match(validate)
-    if not user:
-        raise Unauthorized('User not found')
-    if request.uid != user.id:
-        request.uid = user.id
-        request.jwt_token = token
-        request.jwt_payload = validate
+# Client-credentials: minta token dari IdP
+resp = self.env['amr.resource.helper'].generate_token(
+    client_id='x', client_secret='y', issuer='https://oidc.example.com',
+    grant_type='client_credentials')
 ```
 
-### 8. Catatan Pola Odoo 13 vs 20
-- Pada Odoo 13, manajemen session dan pembaruan `request.uid` / `request.session` dilakukan secara langsung melalui manipulasi `request.uid` dan `session.session_token` di dalam `ir.http`. Komentar dalam kode menunjukkan penyesuaian eksplisit untuk kompatibilitas environment Odoo versi lebih tinggi/rendah.
+Konsumen: `amr_data_sync` (validasi request sinkronisasi), `amr_service_client` (autentikasi antar service), `amr_token`.
+
+### 4. Error Handling
+
+`exceptions.py` mendefinisikan exception khusus; validasi gagal → 401 Unauthorized via `ir.http`; `validate_hs` raise `InvalidTokenError` bila token tidak `active`.
+
+### 5. Catatan Pola Odoo 13 vs 20
+- `request.session` handling berubah sejak 16 (`ir_http.py` sudah ada komentar — perlu review saat migrasi)
+- `PyJWKClient` dari `pyjwt>=2` — pastikan versi di requirements Odoo 20
+- `auth='machine'` harus tetap terdaftar di `_auth_method_map`
 
 ---
 
 ## Untuk User
 
-### 1. Menu & Form UI
-- **Settings > General Settings > Amr OIDC / Resource Server**: Menu konfigurasi utama untuk mengatur Issuer, Audience, serta mengaktifkan modul-modul integrasi `amr_*` lainnya.
-- **Users / Wizards**: Menu untuk membuat user khusus mesin/service menggunakan *Create User Wizard*.
+### Konfigurasi Awal
+1. **Settings → General Settings → amr_resource** — isi Issuer (URL IdP, mis. `https://oidc.agusramdan.web.id/application/o/rancan-website/`) dan Audience
+2. IdP harus mengekspos `/.well-known/openid-configuration` & `jwks.json`
 
-### 2. Alur Harian
-- Administrator sistem mengonfigurasi URL Issuer dan Audience pada menu Settings.
-- Membuat akun *machine/service user* menggunakan wizard agar service eksternal dapat terhubung ke Odoo menggunakan token JWT yang valid.
+### Cara Kerja Singkat
+API dikirim request dengan header `Authorization: Bearer <token>` → Odoo memvalidasi token ke IdP (via JWKS atau introspection) → user dicocokkan (email/sub) → resource dilayani bila valid.
 
-### 3. Konfigurasi
-- **Issuer**: Menentukan base URL OIDC issuer yang dipercaya.
-- **Audience**: Menentukan target audiens token untuk validasi keamanan.
-- **Freeze Web Base URL**: Mencegah Odoo mengubah `web.base.url` secara otomatis.
+### FAQ
+- **Token ditolak "not active"?** Token HS-signed — pastikan introspection endpoint tersedia di IdP.
+- **User tidak tercocok?** Pastikan email di IdP = login/email user Odoo, atau token `type=machine` untuk service account.
 
-### 4. FAQ
-- **Q: Mengapa API mengembalikan error 401 Unauthorized?**
-  - A: Pastikan header `Authorization: Bearer <token>` disertakan dengan benar dan token belum kedaluwarsa atau issuer/audience sesuai dengan konfigurasi sistem.
-- **Q: Bagaimana cara membuat user untuk koneksi mesin antar service?**
-  - A: Gunakan menu *Create User Wizard* dan pastikan user tersebut masuk ke grup Machine yang disediakan oleh modul.
+---
+
+## Catatan Versi
+- Odoo sumber: 13.0.0.0.8
+- Status migrasi 20.0: **Belum dimulai**
