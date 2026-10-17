@@ -5,7 +5,7 @@
     'summary': "Token Provider",
     'description': "Token Provider",
     'author': "Agus Muhammad Ramdan",
-    'website': "http://www.agusramdan.tech",
+    'website': "https://www.agusramdan.web.id",
     'category': 'API',
     'version': '13.0.0.0.6',
     'depends': ['base', 'base_setup', 'web', 'amr_resource'],
