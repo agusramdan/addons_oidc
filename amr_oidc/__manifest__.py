@@ -5,7 +5,7 @@
     'summary': "OIDC, JWT",
     'description': "OIDC, JWT",
     'author': "Agus Muhammad Ramdan",
-    'website': "http://www.agusramdan.tech",
+    'website': "https://www.agusramdan.web.id",
     'category': 'API',
     'version': '13.0.0.0.5',
     'depends': ['base', 'web', 'amr_token'],

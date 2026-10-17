@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from werkzeug.exceptions import Unauthorized
 from odoo import fields, models
-from odoo.http import request
-from odoo.service import security
 
 
 class OidcClientKey(models.Model):
