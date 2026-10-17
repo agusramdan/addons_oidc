@@ -2,6 +2,7 @@
     'name': 'Service Client',
     'category': 'Tools',
     'author': 'Agus Muhammad Ramdan',
+    'website': "https://www.agusramdan.web.id",
     'version': '13.0.0.1.0',
     'depends': ['base', 'web', 'base_setup', 'amr_resource'],
     'license': 'LGPL-3',

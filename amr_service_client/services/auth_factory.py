@@ -1,19 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from odoo import api, models
+from odoo import api, models, tools
 from odoo.tools import config
-
-import os
-import json
-
-from odoo import tools
-from odoo import models
-
 from .providers import (
     NoneAuthProvider,
     ApiKeyProvider,
     BearerProvider,
     BasicProvider,
+    GetJWTTokenProvider,
     ClientSecretProvider,
     ServiceAccountProvider,
 )
@@ -24,6 +18,8 @@ class ServiceAuthFactory(models.AbstractModel):
     _description = "Service Authentication Factory"
 
     PROVIDERS = {
+        "none": NoneAuthProvider,
+        "get_jwt": GetJWTTokenProvider,
         "api_key": ApiKeyProvider,
         "bearer": BearerProvider,
         "basic": BasicProvider,

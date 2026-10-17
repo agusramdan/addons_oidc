@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, tools
+import base64
+import logging
+import requests
+
+from odoo import api, models, tools
 
 from odoo.fields import Datetime, Date
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-import requests
-import base64
-import logging
 
 _logger = logging.getLogger(__name__)
 

@@ -11,5 +11,8 @@ access_service_client_manager,service.client.manager,model_service_client,base.g
 access_service_client_log_user,service.client.log.user,model_service_client_log,base.group_user,1,0,0,0
 access_service_client_log_manager,service.client.log.manager,model_service_client_log,base.group_erp_manager,1,1,1,1
 
+access_service_client_payload_user,service.client.payload.user,model_service_client_payload,base.group_user,1,0,0,0
+access_service_client_payload_manager,service.client.payload.manager,model_service_client_payload,base.group_erp_manager,1,1,1,1
+
 access_service_credential_wizard,service.credential.wizard,model_service_credential_wizard,base.group_user,1,1,1,1
 access_service_endpoint_test_wizard,service.endpoint.test.wizard,model_service_endpoint_test_wizard,base.group_user,1,1,1,1

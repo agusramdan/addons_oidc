@@ -19,6 +19,8 @@
                             <group>
                                 <field name="endpoint_id" />
                                 <field name="credential_id" />
+                                <field name="action_next_id" />
+                                <field name="error_handle_id" />
                             </group>
                         </group>
                         <notebook>

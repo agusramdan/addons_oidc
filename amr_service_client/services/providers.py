@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import jwt
 import base64
 import logging
 import requests
@@ -12,6 +13,7 @@ from requests.exceptions import (
     HTTPError,
 )
 
+from odoo import api
 from odoo.exceptions import UserError
 
 _logger = logging.getLogger(__name__)
@@ -31,6 +33,22 @@ class AuthenticationProvider:
     def __init__(self, env, credential):
         self.env = env
         self.credential = credential
+
+    @api.model
+    def is_token_expired(self, token, leeway=0):
+        if token:
+            try:
+                decoded_token = jwt.decode(token.encode("utf-8"), options={"verify_signature": False, "verify_exp": False})
+                expiration_timestamp = decoded_token.get("exp")
+                if expiration_timestamp is None:
+                    return False
+                current_time = int(time.time())
+                return expiration_timestamp <= current_time + leeway
+            except jwt.DecodeError:
+                pass
+
+        return True
+
 
     def authenticate(self, request_context, audience=None):
         return request_context
@@ -77,10 +95,96 @@ class BasicProvider(AuthenticationProvider):
         return request_context
 
 
+class GetJWTTokenProvider(AuthenticationProvider):
+
+    def _get_cache_key(self, audience=None, ):
+        token_uri = self.credential.get("token_uri")
+        return "GetJWT|%s|%s|%s" % (self.credential["username"], audience or "",token_uri)
+
+    def _get_token(self, audience=None):
+        cache_key = self._get_cache_key(audience or "", )
+        token = self.env["service.token.cache"].get_cache(cache_key)
+        if token and not self.is_token_expired(token):
+            return token
+
+        token_response = self._request_token(audience=audience, )
+
+        self.env["service.token.cache"].set_cache(
+            cache_key, token_response["access_token"], token_response["cache_ttl"],
+        )
+        return token_response["access_token"]
+
+    def _request_token(self, audience=None):
+
+        token_uri = self.credential.get("token_uri")
+
+        if not token_uri:
+            raise ValueError("token_uri is required")
+
+        payload = {
+            "username": self.credential.get("username"),
+            "password": self.credential.get("password"),
+        }
+
+        headers = {"Accept": "application/json", }
+        connect_timeout = self.credential.get("connect_timeout", 10, )
+        read_timeout = self.credential.get("read_timeout", 30, )
+        _logger.info("Requesting token username=%s , token_uri=%s", self.credential.get("username"), token_uri)
+
+        try:
+            response = requests.post(
+                token_uri, headers=headers, data=payload, timeout=(connect_timeout, read_timeout,),
+            )
+
+        except Timeout:
+            raise ValueError("Token endpoint timeout")
+        except ConnectionError:
+            raise ValueError("Token to connect to token endpoint")
+
+        try:
+            response.raise_for_status()
+        except HTTPError:
+            try:
+                error_data = response.json()
+            except Exception:
+                error_data = response.text
+            raise ValueError("Token request failed: %s" % error_data)
+
+        try:
+            token_response = response.json()
+        except Exception:
+            raise ValueError("Invalid token response")
+
+        access_token = token_response.get("token") or token_response.get("access_token")
+
+        if not access_token:
+            raise ValueError("access_token not found")
+
+        token_type = token_response.get("token_type", "JWT", )
+
+        return {
+            "access_token": access_token,
+            "token_type": token_type,
+            "raw_response": token_response,
+        }
+
+    def authenticate(self, request_context, audience=None):
+        request_context.setdefault("headers", {})
+        request_context["headers"]["Authorization"] = "JWT %s" % self._get_token(audience=audience)
+        return request_context
+
+    def test_credential(self):
+        token = self._request_token()
+        _logger.debug(f"Credential token: {token}...")
+        # self.env['amr.resource.helper'].decode(token['access_token'])
+        return token
+
+
 class ClientSecretProvider(AuthenticationProvider):
 
     def _get_cache_key(self, audience=None, ):
-        return "ClientSecret|%s|%s" % (self.credential["client_id"], audience or "",)
+        token_uri = self.credential.get("token_uri")
+        return "ClientSecret|%s|%s|%s" % (self.credential["client_id"], audience or "-", token_uri or "-")
 
     def _get_token(self, audience=None):
         cache_key = self._get_cache_key(audience or "", )

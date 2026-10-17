@@ -355,7 +355,9 @@ class ServiceClientFactory(models.Model):
         help="Write Python code handle response that the action will execute. Some variables are "
              "available for use; help about python expression is given in the help tab."
     )
+    action_next_id = fields.Many2one('ir.actions.server')
     payload_ids = fields.One2many('service.client.payload', 'service_client_id')
+    error_handle_id = fields.Many2one('ir.actions.server')
 
     @api.model
     def _get_eval_context(self):
@@ -409,39 +411,52 @@ class ServiceClientFactory(models.Model):
         self.ensure_one()
         action = None
         def call_records(records):
-            eval_context_local = {}
+            eval_context_result = {}
             eval_interation_context = self._get_eval_context()
             eval_interation_context = self._run_action_iteration(eval_interation_context)
-            for int_ctx in eval_interation_context.get('response', []):
-                eval_context_local = self._get_eval_context()
+            response = eval_interation_context.pop('response', [])
+            for int_ctx in response:
                 ctx = eval_interation_context.get('ctx', {})
                 int_ctx = int_ctx or {}
                 ctx.update(int_ctx)
-                eval_context_local.update(eval_context or {})
+                eval_context_local = dict(eval_context or {})
                 eval_context_local['ctx'] = ctx
                 record = eval_context_local.get('record')
                 if record and record != records:
                     eval_context_local['record'] = record.with_context(ctx)
                 eval_context_local['records'] = records.with_context(ctx)
                 eval_context_local['payload'] = self.payload_ids.get_payload(eval_context_local)
-                eval_context_local = self._run_action_code(eval_context_local)
+                eval_context_local.update(self._run_action_code(eval_context_local))
                 path = eval_context_local.get('path') or None
                 method = eval_context_local.get('method') or "POST"
                 params = eval_context_local.get('params') or {}
                 headers = eval_context_local.get('headers') or {}
                 payload = eval_context_local.get('payload') or {}
                 client = self.get_service_client(self.endpoint_id, credential=self.credential_id)
-                response = client.call(method, path, params, payload, headers)
-                eval_context['response'] = response
-                eval_context_local = self._run_action_handle(eval_context_local)
-            return eval_context_local
-        if 'action' in eval_context:
-            action = eval_context['action']
+                try:
+                    response = client.call(method, path, params, payload, headers)
+                    eval_context_local['response'] = response
+                    eval_context_local.update(self._run_action_handle(eval_context_local) or {})
+                    eval_context_local['action']  = self.action_next_id.with_context(eval_context_local).run()
+                except Exception as e :
+                    eval_context_local['exception'] = e
+                    if self.error_handle_id:
+                        self.error_handle_id.with_context(eval_context_local).run()
+                    else:
+                        raise e
+                eval_context_result = eval_context_local
+
+            return eval_context_result
+
         if self.each_record:
             for rec in eval_context['records']:
-                call_records(rec)
+                result_context = call_records(rec) or {}
+                if 'action' in result_context:
+                    action = result_context['action']
         else:
-            call_records(eval_context['records'])
+            result_context = call_records(eval_context['records'])
+            if 'action' in result_context:
+                action = result_context['action']
         return action
 
     def _get_endpoint(self, code):
@@ -531,6 +546,7 @@ class ServiceClientPayload(models.Model):
     def get_payload(self,context=None):
         payload = {}
         for param in self:
+            value = None
             if param.type == 'fix':
                 value = param.value
             elif param.type == 'exp':
