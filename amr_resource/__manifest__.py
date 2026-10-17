@@ -5,6 +5,7 @@
     'category': 'Tools',
     'description': "Allow users to validate access token and protect resources.",
     'maintainer': 'Agus Muhammad Ramdan',
+    'website': "https://www.agusramdan.web.id",
     'depends': ['base', 'web', 'base_setup', ],
     'version': '13.0.0.0.8',
     'data': [
