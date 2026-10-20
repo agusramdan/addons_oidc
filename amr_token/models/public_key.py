@@ -30,6 +30,7 @@ class PublicKey(models.Model):
             ("env_pem", "Environment Pem"),
             ("env_path", "Environment Path"),
             ("config_path", "Config Path"),
+            ("config_pem", "Config pem"),
             ("system_parameter_pem", "System Parameter pem"),
             ("system_parameter_path", "System Parameter Path"),
         ],
@@ -85,14 +86,14 @@ class PublicKey(models.Model):
             return record.private_key
         elif source == "env_pem":
             return os.getenv(record.reference)
+        elif source == "config_pem":
+            return config.get(record.reference)
         elif source == "system_parameter_pem":
-            return self.env["ir.config_parameter"].sudo().get_param(
-                record.reference
-            )
-
-        if source == "file_path":
+            return self.env["ir.config_parameter"].sudo().get_param(record.reference)
+        elif source == "file_path":
             return self._read_file(record.reference)
-        elif source == "env_path":
+
+        if source == "env_path":
             path = os.getenv(record.reference)
         elif source == "config_path":
             path = config.get(record.reference)
@@ -103,6 +104,7 @@ class PublicKey(models.Model):
 
         return self._read_file(path)
 
+    @api.model
     def _read_file(self, path):
         if not path:
             raise ValueError("Private key path not configured")
