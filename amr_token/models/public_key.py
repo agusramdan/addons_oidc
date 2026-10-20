@@ -3,10 +3,11 @@
 import logging
 import os
 import jwt
-from jwt import InvalidTokenError
-from jwt.algorithms import RSAAlgorithm, ECAlgorithm
-from cryptography.hazmat.primitives import serialization
+
 from cryptography.exceptions import UnsupportedAlgorithm
+from cryptography.hazmat.primitives import serialization
+from jwt import InvalidTokenError
+from jwt.algorithms import ECAlgorithm, RSAAlgorithm
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
@@ -70,7 +71,7 @@ class PublicKey(models.Model):
                 )
 
             except (ValueError, UnsupportedAlgorithm):
-                raise ValidationError("Invalid public key")
+                raise ValidationError("Invalid public key.")
 
     def load_pem_public_key(self):
         from cryptography.hazmat.primitives import serialization
@@ -108,6 +109,7 @@ class PublicKey(models.Model):
 
         with open(path, "r", encoding="utf-8") as f:
             return f.read()
+
     @api.model
     def get_jwks(self):
         list_key = []

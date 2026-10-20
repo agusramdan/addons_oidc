@@ -91,6 +91,6 @@ class ControllerToken(Controller):
         try:
             payload = request.env['amr.token.helper'].sudo().oidc_profile(**kwargs)
         except Exception as ex:
-            _logger.exception("Error oidc_introspect")
+            _logger.exception("Error oidc_profile")
             return self.handle_exception(ex, 401, "invalid_token")
         return self.make_response(**payload)

@@ -51,7 +51,9 @@ class ResUsers(models.Model):
         access_token, _, _ = self.env['amr.token.helper'].generate_user_token(self, audience=audience)
         return self.env['amr.token'].create_access_token(user=self, **kw)
 
-    def add_url_access_token(self, url=None, create=True, param_name='access_token', audience=None, **kw):
+    def add_url_access_token(self, url=None, create=True, param_name='access_token', audience=None, url_type='access_token', **kw):
+        if url_type != 'access_token':
+            return self.get_auto_login_url(url=url, **kw)
         if not self.is_user_allow_create_token():
             return url
         parsed_url = urlparse(url)
